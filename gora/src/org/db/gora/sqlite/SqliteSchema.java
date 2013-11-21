@@ -140,36 +140,25 @@ public class SqliteSchema {
 		parentMap.put(linkData.childClass, linkData.parentClass);
 	}
 	
-	final static class TableRelation {
-		final Class<?> parent;
-		final Class<?> child;
-		public TableRelation(Class<?> parent, Class<?> child) {
-			this.parent = parent;
-			this.child = child;
-		}
-		
-		@Override
-		public int hashCode() {
-			return (parent != null ? parent.hashCode() : 0) | (child != null ? child.hashCode() : 0);
-		}
-		
-		@Override
-		public boolean equals(Object object) {
-			if (object == null) return false; 
-			if (object.getClass() == this.getClass()) {
-				return ((TableRelation) object).parent == parent && ((TableRelation) object).child == child;
-			} 
-			return false;
-		}
-	}
-	
-	final Map<TableRelation, TableQueryBuilder> relationBuilders = new HashMap<TableRelation, TableQueryBuilder>();
-	public TableQueryBuilder getRelationQueryBuilder(TableRelation relation) {
-		TableQueryBuilder result = relationBuilders.get(relation);
+	final Map<Class<?>, TableQueryBuilder> queryBuilders = new HashMap<Class<?>, TableQueryBuilder>();
+	TableQueryBuilder getQueryBuilder(Class<?> clazz) {
+		TableQueryBuilder result = queryBuilders.get(clazz);
 		if (result == null) {
-			TableData tableData = getTableData(relation.child);
+			TableData tableData = getTableData(clazz);
 			if (tableData == null) return null;
-			Class<?> current = relation.child;
+			result = new TableQueryBuilder(tableData);
+			queryBuilders.put(clazz, result);
+		}
+		return result;
+	} 
+	
+	TableQueryBuilder.LinkedQueryBuilder getLinkedQueryBuilder(Class<?> clazz, Class<?> idClazz)
+			throws DataIntegrityException 
+	{
+		TableQueryBuilder tableBuilder = getQueryBuilder(clazz);
+		TableQueryBuilder.LinkedQueryBuilder result = tableBuilder.linkedBuilders.get(clazz);
+		if (result == null) {
+			Class<?> current = clazz;
 			ArrayList<TableData> pathToId = new ArrayList<TableData>();
 			while (current != null) {
 				Class<?> parent = getParentClass(current);
@@ -177,12 +166,18 @@ public class SqliteSchema {
 				TableData parentData = getTableData(parent);
 				if (parentData == null) return null;
 				pathToId.add(parentData);
-				if (parent == relation.parent) break;
+				if (parent == idClazz) break;
 				current = parent;
 			}
-			result = new TableQueryBuilder(tableData, pathToId.toArray(new TableData[0]));
+			if (current != idClazz) {
+				throw new DataIntegrityException(
+						String.format("Linked Query Builder: Classes %s and %s are not linked.", 
+								clazz.getName(), idClazz.getName())); 
+			}
+			
+			result = tableBuilder.new LinkedQueryBuilder(pathToId.toArray(new TableData[0]));
+			tableBuilder.linkedBuilders.put(idClazz, result);
 		}
 		return result;
-	} 
-	
+	}
 }

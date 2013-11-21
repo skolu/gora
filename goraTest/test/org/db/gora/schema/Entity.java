@@ -1,14 +1,14 @@
-package org.db.gora.fom;
+package org.db.gora.schema;
 
 import java.util.Date;
 
 import org.db.gora.schema.SqlColumn;
 
-public class FomEntity extends FomRow {
+public class Entity extends Row {
 	@SqlColumn(name="cloud_key", index=true)
 	public String cloudKey;
 
-	@SqlColumn(name="cloud_token", index=true)
+	@SqlColumn(name="cloud_token")
 	public String cloudToken;
 
 	@SqlColumn(name="created")

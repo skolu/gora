@@ -1,4 +1,4 @@
-package org.db.gora.fom;
+package org.db.gora.schema;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +8,7 @@ import org.db.gora.schema.SqlColumn;
 import org.db.gora.schema.SqlLinkedEntity;
 import org.db.gora.schema.WhenLinkBroken;
 
-public class Invoice extends FomEntity {
+public class Invoice extends Entity {
 	@SqlChild
 	public ArrayList<InvoiceItem> items;
 	
@@ -37,7 +37,7 @@ public class Invoice extends FomEntity {
 		}
 	}
 
-	public static class InvoicePayment extends FomRow {
+	public static class InvoicePayment extends Row {
 		@SqlColumn(name="parent_id", fk=true)
 		public long parentId;
 	}

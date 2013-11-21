@@ -4,8 +4,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
-import org.db.gora.sqlite.SqliteSchema.TableRelation;
-
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
@@ -46,8 +44,8 @@ public class SqliteManager implements DataManager {
 		return true;
 	}
 
-	private void deleteChildren(long id, Class<?> idClazz, Class<?> toDelete) {
-		TableQueryBuilder builder = mSchema.getRelationQueryBuilder(new TableRelation(idClazz, toDelete));
+	private void deleteChildren(long id, Class<?> idClazz, Class<?> toDelete) throws DataIntegrityException {
+		TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(toDelete, idClazz);
 		if (builder == null) {
 			String.format("SqliteManager: deleteChildren: classes %s and %s are unrelated.", idClazz.getName(), toDelete.getName());
 		}
@@ -57,7 +55,7 @@ public class SqliteManager implements DataManager {
 				deleteChildren(id, idClazz, child.childClass);
 			}
 		}
-		mDb.delete(builder.tableData.tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
+		mDb.delete(builder.getTableData().tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
 	}
 
 	/**
@@ -79,7 +77,7 @@ public class SqliteManager implements DataManager {
 			throw new DataAccessException("SqliteManager: Read: Sqlite database is not open");
 		}
 
-		TableQueryBuilder builder = mSchema.getRelationQueryBuilder(new TableRelation(clazz, clazz));
+		TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
 		if (builder == null) {
 			throw new DataAccessException(String.format("SqliteManager: Read: class %s is not registered", clazz.getName()));
 		}
@@ -101,7 +99,7 @@ public class SqliteManager implements DataManager {
 				List<TableLinkData> children = mSchema.getChildren(clazz);
 				if (children != null) {
 					for (TableLinkData child: children) {
-						Object[] childRows = readChildren(id, clazz, child);
+						Object[] childRows = readChildren(id, clazz, child.childClass);
 						if (childRows != null) {
 							for (Object row: childRows) {
 								child.valueAccessor.appendChild(row, entity);
@@ -117,12 +115,12 @@ public class SqliteManager implements DataManager {
 		return entity;
 	}
 
-	private Object[] readChildren(long id, Class<?> clazz, TableLinkData childLink) throws Exception 
+	private Object[] readChildren(long id, Class<?> idClazz, Class<?> childClazz) throws Exception 
 	{
-		TableQueryBuilder builder = mSchema.getRelationQueryBuilder(new TableRelation(clazz, childLink.childClass));
+		TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(childClazz, idClazz);
 		if (builder == null) {
 			throw new DataIntegrityException(
-					String.format("SqliteManager: readChildren: classes %s and %s are unrelated.", clazz.getName(), childLink.childClass.getName()));
+					String.format("SqliteManager: readChildren: classes %s and %s are unrelated.", idClazz.getName(), childClazz.getName()));
 		}
 
 		Object[] rows = new Object[256];
@@ -137,8 +135,8 @@ public class SqliteManager implements DataManager {
 						System.arraycopy(rows, 0, newArray, 0, rows.length);
 						rows = newArray;
 					}
-					Object chobj = builder.tableData.tableClass.newInstance();
-					populateStorage(chobj, builder.tableData.fields, cc);
+					Object chobj = builder.getTableData().tableClass.newInstance();
+					populateStorage(chobj, builder.getTableData().fields, cc);
 					rows[childCount] = chobj;
 					childCount++;
 				}
@@ -151,13 +149,13 @@ public class SqliteManager implements DataManager {
 		Object[] result = new Object[childCount];
 		System.arraycopy(rows, 0, result, 0, childCount);
 
-		List<TableLinkData> children = mSchema.getChildren(childLink.childClass);
+		List<TableLinkData> children = mSchema.getChildren(childClazz);
 
 		if (children != null) {
-			ValueAccess valueAccessor = builder.tableData.primaryKey.valueAccessor;
+			ValueAccess valueAccessor = builder.getTableData().primaryKey.valueAccessor;
 			Arrays.sort(result, new LongValueComparator(valueAccessor));
 			for (TableLinkData childSchema: children) {
-				Object[] childRows = readChildren(id, clazz, childSchema);
+				Object[] childRows = readChildren(id, idClazz, childSchema.childClass);
 				if (childRows != null) {
 					ValueAccess childAccessor = childSchema.foreignKeyField.valueAccessor;
 					if (childRows.length > 1) {
@@ -322,7 +320,7 @@ public class SqliteManager implements DataManager {
                 case DATE: {
                     Date dt = (Date) field.valueAccessor.getValue(storage);
                     long l = dt != null ? dt.getTime() : 0L;
-                    values[i] = l;
+                    values[i] = Long.valueOf(l);
                 }
                 break;
 

@@ -9,12 +9,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.db.gora.sqlite.FieldData;
 import org.db.gora.sqlite.FieldDataType;
-
+import org.db.gora.sqlite.TableData;
+import org.db.gora.sqlite.ValueAccess;
 
 public class SchemaBuilder {
 	public static ClassInfo extractClass(Class<?> clazz) {
-		ClassInfo classInfo = new ClassInfo();
+		ArrayList<Field> fields = new ArrayList<Field>();
+		ArrayList<Method> methods = new ArrayList<Method>();
 		
 		Class<?> c = clazz;
 		while (c != null) {
@@ -25,7 +28,7 @@ public class SchemaBuilder {
 				for (Field f: fa) {
 					int modifiers = f.getModifiers();
 					if ((modifiers & Modifier.STATIC) == 0) {
-						classInfo.fields.add(f);
+						fields.add(f);
 					} 
 				}
 			}
@@ -35,13 +38,15 @@ public class SchemaBuilder {
 					int modifiers = m.getModifiers();
 					if ((modifiers & Modifier.STATIC) != 0) continue; 
 					
-					classInfo.methods.add(m);
+					methods.add(m);
 				}
 			}
 			c = c.getSuperclass();
 		}
 		
-		for (Field f: classInfo.fields) {
+		ArrayList<ExtractedField> publicFields = new ArrayList<ExtractedField>();
+		ArrayList<ExtractedProperty> publicProperties = new ArrayList<ExtractedProperty>();
+		for (Field f: fields) {
 			ExtractedField ef = new ExtractedField();
 			ef.kind = FieldKind.NONE;
 
@@ -91,7 +96,7 @@ public class SchemaBuilder {
             
 			int modifiers = f.getModifiers();
 			if ((modifiers & Modifier.PUBLIC) != 0) {
-				classInfo.publicFields.add(ef);
+				publicFields.add(ef);
 			} else { // check for getter & setter
 				ExtractedProperty ep = new ExtractedProperty();
 				ep.kind = ef.kind;
@@ -100,7 +105,7 @@ public class SchemaBuilder {
 				ep.field = ef.field;
 				
                 String methodName = String.format("%s%C%s", (fc == Boolean.TYPE) ? "is" : "get", fieldName.charAt(0), fieldName.substring(1, fieldName.length()));
-                for (Method m: classInfo.methods) {
+                for (Method m: methods) {
                 	if (m.getName().equals(methodName)) {
                     	modifiers = m.getModifiers();
             			if ((modifiers & Modifier.PUBLIC) == 0) continue;
@@ -114,7 +119,7 @@ public class SchemaBuilder {
                 if (ep.getter == null) continue;
                 
                 methodName = String.format("%s%C%s", "set", fieldName.charAt(0), fieldName.substring(1, fieldName.length()));
-                for (Method m: classInfo.methods) {
+                for (Method m: methods) {
                 	if (m.getName().equals(methodName)) {
                     	modifiers = m.getModifiers();
             			if ((modifiers & Modifier.PUBLIC) == 0) continue;
@@ -126,20 +131,52 @@ public class SchemaBuilder {
                         break;
                 	}
                 }
-                classInfo.publicProperties.add(ep);
+                publicProperties.add(ep);
 			}
 		}
 		
-		for (ExtractedField f: classInfo.publicFields) {
-			classInfo.fields.remove(f.field);
+		for (ExtractedField f: publicFields) {
+			fields.remove(f.field);
 		}
-		for (ExtractedProperty p: classInfo.publicProperties) {
-			classInfo.fields.remove(p.field);
-			classInfo.methods.remove(p.getter);
+		for (ExtractedProperty p: publicProperties) {
+			fields.remove(p.field);
+			methods.remove(p.getter);
 			if (p.setter != null) {
-				classInfo.methods.remove(p.setter);
+				methods.remove(p.setter);
 			}
 		}
+
+		TableData tableData = new TableData();
+		tableData.tableClass = clazz;
+
+		ArrayList<FieldData> tf = new ArrayList<FieldData>();
+		for (ExtractedField ef: publicFields) {
+			SqlColumn col = ef.field.getAnnotation(SqlColumn.class);
+			if (col != null) {
+				switch(ef.kind) {
+				case SIMPLE: {
+					FieldData fd = new FieldData();
+					fd.columnName = col.name();
+					fd.dataType = ef.simpleType;
+					fd.nullable = col.nullable();
+					fd.valueAccessor = new ValueAccess.ClassFieldValueAccess(ef.field);
+					tf.add(fd);
+					if (col.pk()) {
+						tableData.primaryKey = fd;
+					}
+					if (col.fk()) {
+						tableData.foreignKey = fd;
+					}
+				}
+				break;
+				}
+			} 
+		}
+		
+		
+		ClassInfo classInfo = new ClassInfo();
+		
+
 		
 		return classInfo;
 	} 
@@ -197,9 +234,6 @@ public class SchemaBuilder {
 	}
 
 	public static class ClassInfo {
-		public final ArrayList<Field> fields = new ArrayList<Field>();
-		public final ArrayList<Method> methods = new ArrayList<Method>();
-		public final ArrayList<ExtractedField> publicFields = new ArrayList<ExtractedField>();
-		public final ArrayList<ExtractedProperty> publicProperties = new ArrayList<ExtractedProperty>();
+		public TableData tableData; 
 	} 
 }

@@ -1,8 +1,8 @@
-package org.db.gora.fom;
+package org.db.gora.schema;
 
 import org.db.gora.schema.SqlColumn;
 
-public class FomRow {
+public class Row {
 	@SqlColumn(name="id", pk=true, getter="getId", setter="setId")
 	long id;
 
