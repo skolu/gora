@@ -1,3 +1,4 @@
 .settings/
 local.properties
 bin/
+gen/
