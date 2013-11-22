@@ -35,6 +35,5 @@ public @interface SqlColumn {
     boolean fk() default false;
 
     String getter() default "";
-
     String setter() default "";
 }

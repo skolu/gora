@@ -3,7 +3,10 @@ package org.db.gora.sqlite;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
+import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
@@ -11,14 +14,57 @@ import android.util.Log;
 public class SqliteManager implements DataManager {
 	final SQLiteDatabase mDb;
 	final SqliteSchema mSchema;
+	final ConcurrentLinkedQueue<ContentValues> mValues;
 
 	public SqliteManager(SQLiteDatabase db, SqliteSchema schema) {
 		mDb = db;
 		mSchema = schema;
+		mValues = new ConcurrentLinkedQueue<ContentValues>();
 	}
 
+	/**
+	 * Reads an entity by id
+	 * @throws DataAccessException 
+	 */
 	@Override
-	public <T> boolean delete(Class<T> clazz, long id) throws DataAccessException {
+	public <T> T read(Class<T> clazz, long id) throws DataAccessException {
+		return read(clazz, id, false);
+	}
+
+	/**
+	 * Writes (insert or update) an entity. 
+	 */
+	@Override
+	public <T> void write(T entity) throws DataAccessException {
+		if (entity == null) {
+			throw new DataAccessException("SqliteManager: Write: Null object");
+		}
+		if (mDb == null) {
+			throw new DataAccessException("SqliteManager: Read: Sqlite database is null");
+		}
+		if (!mDb.isOpen()) {
+			throw new DataAccessException("SqliteManager: Read: Sqlite database is not open");
+		}
+		if (mDb.isReadOnly()) {
+			throw new DataAccessException("SqliteManager: Read: Sqlite database is read-only");
+		}
+		
+		mDb.beginTransactionNonExclusive();
+		try {
+			write(entity, 0, true);
+			mDb.setTransactionSuccessful();
+		} catch (Exception e) {
+			throw new DataAccessException("SqliteManager: Delete: Internal exception", e); 
+		} finally {
+			mDb.endTransaction();
+		}
+	}
+	
+	/**
+	 * Deletes an entity
+	 */
+	@Override
+	public <T> void delete(Class<T> clazz, long id) throws DataAccessException {
 		if (clazz == null) {
 			throw new DataAccessException("SqliteManager: Read: class is null");
 		}
@@ -41,7 +87,6 @@ public class SqliteManager implements DataManager {
 		} finally {
 			mDb.endTransaction();
 		}
-		return true;
 	}
 
 	private void deleteChildren(long id, Class<?> idClazz, Class<?> toDelete) throws DataIntegrityException {
@@ -56,14 +101,6 @@ public class SqliteManager implements DataManager {
 			}
 		}
 		mDb.delete(builder.getTableData().tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
-	}
-
-	/**
-	 * Reads an entity by id
-	 * @throws DataAccessException 
-	 */
-	public <T> T read(Class<T> clazz, long id) throws DataAccessException {
-		return read(clazz, id, false);
 	}
 
 	private <T> T read(Class<T> clazz, long id, boolean skipChildren) throws DataAccessException {
@@ -192,9 +229,123 @@ public class SqliteManager implements DataManager {
 		return result;
 	}
 
-	@Override
-	public <T> boolean write(T entity) {
-		return false;
+	private void clearIdInArray(long id, long[] array) {
+		if (array != null) {
+			for (int i = 0; i < array.length; ++i) {
+				if (array[i] == id) {
+					array[i] = 0;
+					break;
+				}
+			}
+		}
+	}
+	
+	private long write(Object scope, long parentId, boolean withChildren) throws Exception {
+		Class<?> clazz = scope.getClass();
+		TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
+		if (builder == null) {
+			throw new DataAccessException(String.format("SqliteManager: Write: class %s is not registered", clazz.getName()));
+		}
+		TableData tableData = builder.tableData;
+
+		boolean isInsert;
+		long id;
+		{
+			ContentValues values = mValues.poll();
+			if (values == null) {
+				values = new ContentValues();
+			}
+			populateValues(scope, tableData.fields, values);
+			if (tableData.foreignKey != null) {
+				long fkId = (long) values.getAsLong(tableData.foreignKey.columnName);
+				if (fkId != parentId) {
+					values.put(tableData.foreignKey.columnName, Long.valueOf(parentId));
+					tableData.foreignKey.valueAccessor.setValue(Long.valueOf(parentId), scope);
+				}
+			}
+
+			id = (long) values.getAsLong(tableData.primaryKey.columnName);
+			values.remove(tableData.primaryKey.columnName);
+			isInsert = id == 0;
+			if (isInsert) { 
+				id = mDb.insert(tableData.tableName, null, values);
+				tableData.primaryKey.valueAccessor.setValue(Long.valueOf(id), scope);
+			} else {
+				mDb.update(tableData.tableName, values, builder.getUpdateWhereClause(), new String[] {Long.toString(id)});
+			}
+			
+			mValues.add(values);
+		}
+		
+		
+		if (withChildren) {
+			List<TableLinkData> children = mSchema.getChildren(clazz);
+			for (TableLinkData child: children) {
+				long[] ids = null;
+				if (!isInsert) {
+					TableQueryBuilder.LinkedQueryBuilder childBuilder = mSchema.getLinkedQueryBuilder(child.childClass, clazz);
+					Cursor cc = mDb.rawQuery(childBuilder.getSelectIdByLinkedIdQuery(), new String[]{Long.toString(id)});
+					if (cc != null) {
+						ids = new long[256];
+						int pos = 0;
+						try {
+							while (cc.moveToNext()) {
+								ids[pos] = cc.getLong(0);
+								++pos;
+								if (pos >= ids.length) {
+									long[] newIds = new long[ids.length + 256];
+									System.arraycopy(ids, 0, newIds, 0, ids.length);
+									ids = newIds;
+								}
+							}
+							long[] newIds = new long[pos];
+							System.arraycopy(ids, 0, newIds, 0, pos);
+							ids = newIds;
+						} finally {
+							cc.close();
+						}
+					}
+				}
+				
+				Object childObject = child.valueAccessor.getChildren(scope);
+				if (childObject != null) {
+					switch(child.linkType) {
+					case SINGLE: {
+						long childId = write(childObject, id, true);
+						clearIdInArray(childId, ids);
+					}
+					break;
+					
+					case LIST: {
+						List<?> list = (List<?>) childObject;
+						for (Object lo: list) {
+							long childId = write(lo, id, true);
+							clearIdInArray(childId, ids);
+						}
+					}
+					break;
+					
+					case SET: {
+						Set<?> list = (Set<?>) childObject;
+						for (Object lo: list) {
+							long childId = write(lo, id, true);
+							clearIdInArray(childId, ids);
+						}
+					}
+					break;
+					}
+				}
+				if (!isInsert && ids != null) {
+					for (long chid: ids) {
+						if (chid != 0) {
+							delete(child.childClass, chid);
+						}
+					}
+				}
+			}
+		}
+		
+		return id;
 	}
 
 	final static void populateStorage(Object storage, FieldData[] fields, Cursor from) throws Exception {
@@ -278,54 +429,54 @@ public class SqliteManager implements DataManager {
 		}
 	}
 	
-    final static void populateValues(Object storage, FieldData[] fields, Object[] values) throws Exception {
+    final static void populateValues(Object storage, FieldData[] fields, ContentValues values) throws Exception {
         if (storage == null || values == null) return;
+        values.clear();
 
         for (int i = 0; i < fields.length; ++i) {
-        	if (i >= values.length) break;
         	FieldData field = fields[i];
             switch (field.dataType) {
                 case BOOLEAN: 
-                	values[i] = (Boolean) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Boolean) field.valueAccessor.getValue(storage));
                 	break;
 
                 case BYTE:
-                    values[i] = (Byte) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Byte) field.valueAccessor.getValue(storage));
                     break;
 
                 case SHORT: 
-                    values[i] = (Short) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Short) field.valueAccessor.getValue(storage));
                 break;
 
                 case INT:
-                    values[i] = (Integer) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Integer) field.valueAccessor.getValue(storage));
                     break;
 
                 case LONG:
-                    values[i] = (Long) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Long) field.valueAccessor.getValue(storage));
                     break;
 
                 case FLOAT:
-                    values[i] = (Float)field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Float)field.valueAccessor.getValue(storage));
                     break;
 
                 case DOUBLE:
-                    values[i] = (Double) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (Double) field.valueAccessor.getValue(storage));
                 break;
 
                 case STRING:
-                    values[i] = (String) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (String) field.valueAccessor.getValue(storage));
                     break;
 
                 case DATE: {
                     Date dt = (Date) field.valueAccessor.getValue(storage);
                     long l = dt != null ? dt.getTime() : 0L;
-                    values[i] = Long.valueOf(l);
+                    values.put(field.columnName, Long.valueOf(l));
                 }
                 break;
 
                 case BYTEARRAY: 
-                    values[i] = (byte[]) field.valueAccessor.getValue(storage);
+                	values.put(field.columnName, (byte[]) field.valueAccessor.getValue(storage));
                     break;
 
                 default:
@@ -334,5 +485,4 @@ public class SqliteManager implements DataManager {
             }
         }
     }
-
 }

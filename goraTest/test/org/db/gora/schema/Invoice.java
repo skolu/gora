@@ -8,11 +8,14 @@ import org.db.gora.schema.SqlColumn;
 import org.db.gora.schema.SqlLinkedEntity;
 import org.db.gora.schema.WhenLinkBroken;
 
+@SqlTable(name="Invoice")
 public class Invoice extends Entity {
 	@SqlChild
 	public ArrayList<InvoiceItem> items;
 	
-	@SqlChild(clazz=InvoicePayment.class)
+	@SqlChild(clazz=InvoicePayment.class, getter="getPayments")
+	private List<?> payments;
+	
 	public List<?> getPayments() {
 		if (sPayments == null) {
 			sPayments = new ArrayList<Invoice.InvoicePayment>();

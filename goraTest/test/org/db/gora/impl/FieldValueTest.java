@@ -1,15 +1,16 @@
 package org.db.gora.impl;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 
 import junit.framework.Assert;
 
+import org.db.gora.schema.Invoice;
 import org.db.gora.schema.SchemaBuilder;
 import org.db.gora.schema.SchemaBuilder.ClassInfo;
-import org.db.gora.schema.SchemaBuilder.FieldKind;
 import org.db.gora.sqlite.ChildValueAccess;
+import org.db.gora.sqlite.DataIntegrityException;
+import org.db.gora.sqlite.TableData;
 import org.db.gora.sqlite.ValueAccess;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -30,7 +31,7 @@ public class FieldValueTest {
 	}
 	
 	@Test
-	public void testChildValues() throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException, InstantiationException, InvocationTargetException {
+	public void testChildValues() throws Exception {
 		Field f = FieldAccess.class.getDeclaredField("lst");
 		FieldAccess fa = new FieldAccess();
 		FieldAccessChild fac = new FieldAccessChild();
@@ -43,18 +44,11 @@ public class FieldValueTest {
 	}
 	
 	@Test 
-	public void testClassExtract() {
-		ClassInfo classInfo = SchemaBuilder.extractClass(FieldAccess.class);
+	public void testClassExtract() throws DataIntegrityException {
+		ClassInfo classInfo = SchemaBuilder.extractClassInfo(Invoice.class);
+		TableData table = SchemaBuilder.createTableData(classInfo);
 		
-		Assert.assertEquals(classInfo.publicFields.size(), 2);
-		for (SchemaBuilder.ExtractedField ef: classInfo.publicFields) {
-			if (ef.kind == FieldKind.CHILD) {
-				Class<?> childClass = SchemaBuilder.getChildClass(ef);
-				Assert.assertNotNull(childClass);
-			}
-			
-		}
-		
+		Assert.assertNotNull(table);
 	}
 	
 	public static class FieldAccess {

@@ -19,12 +19,11 @@ final class TableQueryBuilder {
 		public TableData getTableData() {
 			return tableData;
 		}
-		
-		private String selectByLinkedIdQuery = null;
-		public String getSelectByIdQuery() {
-			if (selectByLinkedIdQuery != null) {
+
+		private String fromWhereByLinkedIdClause = null;
+		public String getFromWhereByLinkedIdClause() {
+			if (fromWhereByLinkedIdClause != null) {
 	    		StringBuilder builder = new StringBuilder();
-	    		builder.append(getSelectClause());
 	    		builder.append(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
 	    		
 	    		if (pathToId.length > 0) {
@@ -43,10 +42,29 @@ final class TableQueryBuilder {
 	        		builder.append(String.format(" WHERE t%d.%s = ?", tableData.tableNo, tableData.primaryKey.columnName));
 	    		}
 
-	    		selectByLinkedIdQuery = builder.toString();
+	    		fromWhereByLinkedIdClause = builder.toString();
+			}
+			return fromWhereByLinkedIdClause;
+		}
+		
+		
+		private String selectByLinkedIdQuery = null;
+		public String getSelectByIdQuery() {
+			if (selectByLinkedIdQuery != null) {
+				selectByLinkedIdQuery = String.format("%s %s", getSelectClause(), getFromWhereByLinkedIdClause());
 			}
 			return selectByLinkedIdQuery;
 		}
+		
+	    private String selectIdByLinkedIdQuery = null;
+	    String getSelectIdByLinkedIdQuery() {
+	    	if (selectIdByLinkedIdQuery != null) {
+	    		selectIdByLinkedIdQuery = String.format(
+	    				"SELECT t%d.%s %s", tableData.tableNo, tableData.primaryKey.columnName, getFromWhereByLinkedIdClause());
+	    	}
+	    	return selectIdByLinkedIdQuery;
+	    }
+	    
 		
 		private String deleteByLinkedIdWhereClause = null;
 		public String getDeleteByIdWhereClause() {
@@ -119,5 +137,14 @@ final class TableQueryBuilder {
     	return selectClause;
     }
 
+    private String updateWhereClause;
+    String getUpdateWhereClause() {
+    	if (updateWhereClause != null) {
+    		updateWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
+    	}
+    	return updateWhereClause;
+    }
+    
+    
     final Map<Class<?>, LinkedQueryBuilder> linkedBuilders = new HashMap<Class<?>, LinkedQueryBuilder>();
 }

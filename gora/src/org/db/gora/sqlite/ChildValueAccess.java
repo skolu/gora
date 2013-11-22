@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.InvalidParameterException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -11,6 +12,7 @@ import android.util.Log;
 
 public interface ChildValueAccess {
 	void appendChild(Object child, Object storage) throws Exception;
+	Object getChildren(Object storage) throws Exception;
 	Class<?> getStorageClass();
 
 	final class SimpleChildValue implements ChildValueAccess {
@@ -19,13 +21,18 @@ public interface ChildValueAccess {
 		}
 
 		@Override
-		public void appendChild(Object child, Object storage) throws IllegalArgumentException, IllegalAccessException  {
+		public void appendChild(Object child, Object storage) throws Exception  {
 			field.set(storage, child);
 		}
 
 		@Override
 		public Class<?> getStorageClass() {
 			return field.getDeclaringClass();
+		}
+		
+		@Override
+		public Object getChildren(Object storage) throws Exception {
+			return field.get(storage);
 		}
 		
 		private final Field field;
@@ -36,14 +43,11 @@ public interface ChildValueAccess {
 			this.storageClass = storageClass;
 		}
 		
-		@SuppressWarnings("rawtypes")
-		public abstract Set getChildFromStorage(Object storage) 
-				throws IllegalArgumentException, IllegalAccessException, InstantiationException, InvocationTargetException ;
+		abstract Set<?> createChildStorage(Object storage) throws Exception;
 		
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		@Override
-		public void appendChild(Object child, Object storage) 
-				throws IllegalArgumentException, IllegalAccessException, InstantiationException, InvocationTargetException 
+		public void appendChild(Object child, Object storage) throws Exception 
 		{
 			if (child == null || storage == null) {
 				throw new InvalidParameterException("appendChild: null parameter");
@@ -51,7 +55,12 @@ public interface ChildValueAccess {
 			if (!storageClass.isAssignableFrom(storage.getClass())) {
 				throw new InvalidParameterException(String.format("Invalid storage class: %s, expected %s", storageClass.getName(), storage.getClass().getName()));
 			}
-			Set set = getChildFromStorage(storage);
+
+			Set set = (Set) getChildren(storage);
+			if (set == null) {
+				set = createChildStorage(storage);
+				
+			}
 			if (set != null) {
 				set.add(child);
 			}
@@ -65,16 +74,16 @@ public interface ChildValueAccess {
 			this.field = field;
 		}
 
-		@SuppressWarnings("rawtypes")
 		@Override
-		public Set getChildFromStorage(Object storage) 
-				throws IllegalArgumentException, IllegalAccessException, InstantiationException 
-		{
-			Set set = (Set) field.get(storage);
-			if (set == null) {
-				set = (Set) field.getType().newInstance();
-				field.set(storage, set);
-			}
+		public Object getChildren(Object storage) throws Exception {
+			return field.get(storage);
+		}
+
+		@Override
+		Set<?> createChildStorage(Object storage) throws Exception	{
+			Set<?> set = (Set<?>) field.getType().newInstance();
+			field.set(storage, set);
+
 			return set;
 		}
 		
@@ -92,10 +101,14 @@ public interface ChildValueAccess {
 			this.getter = getter;
 		}
 
-		@SuppressWarnings("rawtypes")
 		@Override
-		public Set getChildFromStorage(Object storage) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException  {
-			return (Set) getter.invoke(storage, (Object[]) null);
+		Set<?> createChildStorage(Object storage) throws Exception	{
+			return null;
+		}
+
+		@Override
+		public Object getChildren(Object storage) throws Exception  {
+			return getter.invoke(storage, (Object[]) null);
 		}
 		
 		@Override
@@ -111,22 +124,21 @@ public interface ChildValueAccess {
 			this.storageClass = storageClass;
 		}
 		
-		@SuppressWarnings("rawtypes")
-		public abstract List getChildFromStorage(Object storage) 
-				throws IllegalArgumentException, IllegalAccessException, InstantiationException, InvocationTargetException ;
+		abstract List<?> createChildStorage(Object storage) throws Exception;
 		
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		@Override
-		public void appendChild(Object child, Object storage) 
-				throws IllegalArgumentException, IllegalAccessException, InstantiationException, InvocationTargetException 
-		{
+		public void appendChild(Object child, Object storage) throws Exception	{
 			if (child == null || storage == null) {
 				throw new InvalidParameterException("appendChild: null parameter");
 			}
 			if (!storageClass.isAssignableFrom(storage.getClass())) {
 				throw new InvalidParameterException(String.format("Invalid storage class: %s, expected %s", storageClass.getName(), storage.getClass().getName()));
 			}
-			List list = getChildFromStorage(storage);
+			List list = (List) getChildren(storage);
+			if (list == null) {
+				list = createChildStorage(storage);
+			}
 			if (list != null) {
 				list.add(child);
 			}
@@ -146,16 +158,15 @@ public interface ChildValueAccess {
 			this.field = field;
 		}
 
-		@SuppressWarnings("rawtypes")
 		@Override
-		public List getChildFromStorage(Object storage) 
-				throws IllegalArgumentException, IllegalAccessException, InstantiationException 
-		{
-			List list = (List) field.get(storage);
-			if (list == null) {
-				list = (List) field.getType().newInstance();
-				field.set(storage, list);
-			}
+		public Object getChildren(Object storage) throws Exception {
+			return field.get(storage);
+		}
+
+		@Override
+		List<?> createChildStorage(Object storage) throws Exception {
+			List<?> list = (List<?>) field.getType().newInstance();
+			field.set(storage, list);
 			return list;
 		}
 		
@@ -177,10 +188,14 @@ public interface ChildValueAccess {
 			this.getter = getter;
 		}
 
-		@SuppressWarnings("rawtypes")
 		@Override
-		public List getChildFromStorage(Object storage) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException  {
-			return (List) getter.invoke(storage, (Object[]) null);
+		List<?> createChildStorage(Object storage) throws Exception {
+			return null;
+		}
+
+		@Override
+		public Object getChildren(Object storage) throws Exception {
+			return getter.invoke(storage, (Object[]) null);
 		}
 		
 		@Override
