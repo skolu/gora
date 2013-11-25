@@ -1,6 +1,6 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
-public class TableLinkData {
+public class ChildTableData {
 	public ChildDataType linkType;
 	
 	public Class<?> parentClass;

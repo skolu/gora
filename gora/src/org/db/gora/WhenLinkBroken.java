@@ -1,4 +1,4 @@
-package org.db.gora.schema;
+package org.db.gora;
 
 public enum WhenLinkBroken {
 	NONE, 

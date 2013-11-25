@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,7 +22,7 @@ final class TableQueryBuilder {
 
 		private String fromWhereByLinkedIdClause = null;
 		public String getFromWhereByLinkedIdClause() {
-			if (fromWhereByLinkedIdClause != null) {
+			if (fromWhereByLinkedIdClause == null) {
 	    		StringBuilder builder = new StringBuilder();
 	    		builder.append(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
 	    		
@@ -50,7 +50,7 @@ final class TableQueryBuilder {
 		
 		private String selectByLinkedIdQuery = null;
 		public String getSelectByIdQuery() {
-			if (selectByLinkedIdQuery != null) {
+			if (selectByLinkedIdQuery == null) {
 				selectByLinkedIdQuery = String.format("%s %s", getSelectClause(), getFromWhereByLinkedIdClause());
 			}
 			return selectByLinkedIdQuery;
@@ -58,7 +58,7 @@ final class TableQueryBuilder {
 		
 	    private String selectIdByLinkedIdQuery = null;
 	    String getSelectIdByLinkedIdQuery() {
-	    	if (selectIdByLinkedIdQuery != null) {
+	    	if (selectIdByLinkedIdQuery == null) {
 	    		selectIdByLinkedIdQuery = String.format(
 	    				"SELECT t%d.%s %s", tableData.tableNo, tableData.primaryKey.columnName, getFromWhereByLinkedIdClause());
 	    	}
@@ -68,7 +68,7 @@ final class TableQueryBuilder {
 		
 		private String deleteByLinkedIdWhereClause = null;
 		public String getDeleteByIdWhereClause() {
-			if (deleteByLinkedIdWhereClause != null) {
+			if (deleteByLinkedIdWhereClause == null) {
 				StringBuilder builder = new StringBuilder();
 				if (pathToId.length > 0) {
 					if (pathToId.length > 1) {
@@ -102,7 +102,7 @@ final class TableQueryBuilder {
 	
 	private String selectByIdQuery = null;
 	public String getSelectByIdQuery() {
-		if (selectByIdQuery != null) {
+		if (selectByIdQuery == null) {
     		StringBuilder builder = new StringBuilder();
     		builder.append(getSelectClause());
     		builder.append(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
@@ -114,7 +114,7 @@ final class TableQueryBuilder {
 	
 	private String deleteByIdWhereClause = null;
 	public String getDeleteByIdWhereClause() {
-		if (deleteByIdWhereClause != null) {
+		if (deleteByIdWhereClause == null) {
 			StringBuilder builder = new StringBuilder();
 			builder.append(String.format("%s = ?", tableData.primaryKey.columnName));
 			deleteByIdWhereClause = builder.toString();
@@ -124,7 +124,7 @@ final class TableQueryBuilder {
 	
 	private String selectClause;
     String getSelectClause() {
-    	if (selectClause != null) {
+    	if (selectClause == null) {
     		StringBuilder builder = new StringBuilder();
     		builder.append("SELECT ");
     		for (int i = 0; i < tableData.fields.length; ++i) {
@@ -139,7 +139,7 @@ final class TableQueryBuilder {
 
     private String updateWhereClause;
     String getUpdateWhereClause() {
-    	if (updateWhereClause != null) {
+    	if (updateWhereClause == null) {
     		updateWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
     	}
     	return updateWhereClause;

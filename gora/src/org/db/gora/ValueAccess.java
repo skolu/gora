@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;

@@ -1,10 +1,8 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.InvalidParameterException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -15,8 +13,8 @@ public interface ChildValueAccess {
 	Object getChildren(Object storage) throws Exception;
 	Class<?> getStorageClass();
 
-	final class SimpleChildValue implements ChildValueAccess {
-		public SimpleChildValue(Field field) {
+	final class SimpleFieldChildValue implements ChildValueAccess {
+		public SimpleFieldChildValue(Field field) {
 			this.field = field;
 		}
 
@@ -36,6 +34,28 @@ public interface ChildValueAccess {
 		}
 		
 		private final Field field;
+	}
+
+	final class SimpleMethodChildValue implements ChildValueAccess {
+		public SimpleMethodChildValue(Method method) {
+			this.method = method;
+		}
+
+		@Override
+		public void appendChild(Object child, Object storage) throws Exception  {
+		}
+
+		@Override
+		public Class<?> getStorageClass() {
+			return method.getDeclaringClass();
+		}
+		
+		@Override
+		public Object getChildren(Object storage) throws Exception {
+			return method.invoke(storage, (Object[]) null);
+		}
+		
+		private final Method method;
 	}
 	
 	abstract class SetChildValueAccess implements ChildValueAccess {
@@ -68,8 +88,8 @@ public interface ChildValueAccess {
 		protected final Class<?> storageClass; 
 	}
 	
-	final class SetFieldChildValueAccess extends SetChildValueAccess {
-		public SetFieldChildValueAccess(Field field) {
+	final class SetFieldChildValue extends SetChildValueAccess {
+		public SetFieldChildValue(Field field) {
 			super(field.getDeclaringClass());
 			this.field = field;
 		}
@@ -147,8 +167,8 @@ public interface ChildValueAccess {
 		protected final Class<?> storageClass; 
 	}
 	
-	final class ListFieldChildValueAccess extends ListChildValueAccess {
-		public ListFieldChildValueAccess(Field field) {
+	final class ListFieldChildValue extends ListChildValueAccess {
+		public ListFieldChildValue(Field field) {
 			super(field.getDeclaringClass());
 			
 			Class<?> listClazz = field.getType();

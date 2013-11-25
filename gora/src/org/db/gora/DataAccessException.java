@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 public class DataAccessException extends Exception {
 	public DataAccessException(String detailedMessage) {

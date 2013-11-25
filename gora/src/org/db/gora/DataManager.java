@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 public interface DataManager {
     <T> T read(Class<T> clazz, long id) throws DataAccessException;

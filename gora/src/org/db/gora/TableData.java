@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 public class TableData {
     public Class<?> tableClass;
@@ -9,5 +9,4 @@ public class TableData {
     public FieldData foreignKey;
     public FieldData[] fields;
     public IndexData[] indice;
-
 }

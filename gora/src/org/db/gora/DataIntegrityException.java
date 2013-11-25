@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 public class DataIntegrityException extends Exception {
 	

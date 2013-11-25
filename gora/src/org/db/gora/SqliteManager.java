@@ -1,4 +1,4 @@
-package org.db.gora.sqlite;
+package org.db.gora;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -94,9 +94,9 @@ public class SqliteManager implements DataManager {
 		if (builder == null) {
 			String.format("SqliteManager: deleteChildren: classes %s and %s are unrelated.", idClazz.getName(), toDelete.getName());
 		}
-		List<TableLinkData> children = mSchema.getChildren(toDelete);
+		List<ChildTableData> children = mSchema.getChildren(toDelete);
 		if (children != null) {
-			for (TableLinkData child: children) {
+			for (ChildTableData child: children) {
 				deleteChildren(id, idClazz, child.childClass);
 			}
 		}
@@ -133,9 +133,9 @@ public class SqliteManager implements DataManager {
 				}
 			}
 			if (entity != null && !skipChildren) {
-				List<TableLinkData> children = mSchema.getChildren(clazz);
+				List<ChildTableData> children = mSchema.getChildren(clazz);
 				if (children != null) {
-					for (TableLinkData child: children) {
+					for (ChildTableData child: children) {
 						Object[] childRows = readChildren(id, clazz, child.childClass);
 						if (childRows != null) {
 							for (Object row: childRows) {
@@ -186,12 +186,12 @@ public class SqliteManager implements DataManager {
 		Object[] result = new Object[childCount];
 		System.arraycopy(rows, 0, result, 0, childCount);
 
-		List<TableLinkData> children = mSchema.getChildren(childClazz);
+		List<ChildTableData> children = mSchema.getChildren(childClazz);
 
 		if (children != null) {
 			ValueAccess valueAccessor = builder.getTableData().primaryKey.valueAccessor;
 			Arrays.sort(result, new LongValueComparator(valueAccessor));
-			for (TableLinkData childSchema: children) {
+			for (ChildTableData childSchema: children) {
 				Object[] childRows = readChildren(id, idClazz, childSchema.childClass);
 				if (childRows != null) {
 					ValueAccess childAccessor = childSchema.foreignKeyField.valueAccessor;
@@ -279,8 +279,8 @@ public class SqliteManager implements DataManager {
 		
 		
 		if (withChildren) {
-			List<TableLinkData> children = mSchema.getChildren(clazz);
-			for (TableLinkData child: children) {
+			List<ChildTableData> children = mSchema.getChildren(clazz);
+			for (ChildTableData child: children) {
 				long[] ids = null;
 				if (!isInsert) {
 					TableQueryBuilder.LinkedQueryBuilder childBuilder = mSchema.getLinkedQueryBuilder(child.childClass, clazz);
