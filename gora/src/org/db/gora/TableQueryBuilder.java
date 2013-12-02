@@ -103,11 +103,9 @@ final class TableQueryBuilder {
 	private String selectByIdQuery = null;
 	public String getSelectByIdQuery() {
 		if (selectByIdQuery == null) {
-    		StringBuilder builder = new StringBuilder();
-    		builder.append(getSelectClause());
-    		builder.append(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
-    		builder.append(String.format(" WHERE t%d.%s = ?", tableData.tableNo, tableData.primaryKey.columnName));
-    		selectByIdQuery = builder.toString();
+            selectByIdQuery = getSelectClause();
+            selectByIdQuery = selectByIdQuery.concat(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
+            selectByIdQuery = selectByIdQuery.concat(String.format(" WHERE t%d.%s = ?", tableData.tableNo, tableData.primaryKey.columnName));
 		}
 		return selectByIdQuery;
 	}
@@ -115,9 +113,7 @@ final class TableQueryBuilder {
 	private String deleteByIdWhereClause = null;
 	public String getDeleteByIdWhereClause() {
 		if (deleteByIdWhereClause == null) {
-			StringBuilder builder = new StringBuilder();
-			builder.append(String.format("%s = ?", tableData.primaryKey.columnName));
-			deleteByIdWhereClause = builder.toString();
+            deleteByIdWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
 		}
 		return deleteByIdWhereClause;
 	}

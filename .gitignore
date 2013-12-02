@@ -3,4 +3,6 @@ local.properties
 bin/
 gen/
 libs/
+workspace.xml
+tasks.xml
 .DS_Store

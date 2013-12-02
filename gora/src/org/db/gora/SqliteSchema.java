@@ -180,7 +180,7 @@ public class SqliteSchema {
 							clazz.getName())); 
 		}
 		TableQueryBuilder.LinkedQueryBuilder result = tableBuilder.linkedBuilders.get(clazz);
-		if (result == null) {
+		if (result != null) {
 			Class<?> current = clazz;
 			ArrayList<TableData> pathToId = new ArrayList<TableData>();
 			while (current != null) {
@@ -198,7 +198,7 @@ public class SqliteSchema {
 								clazz.getName(), idClazz.getName())); 
 			}
 			
-			result = tableBuilder.new LinkedQueryBuilder(pathToId.toArray(new TableData[0]));
+			result = tableBuilder.new LinkedQueryBuilder(pathToId.toArray(new TableData[pathToId.size()]));
 			tableBuilder.linkedBuilders.put(idClazz, result);
 		}
 		return result;

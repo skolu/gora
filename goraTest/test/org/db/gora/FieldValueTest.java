@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+import junit.framework.Assert;
 import org.db.gora.ChildValueAccess;
 import org.db.gora.DataIntegrityException;
 import org.db.gora.SqliteSchema;
@@ -16,22 +17,17 @@ import org.db.gora.schema.Invoice;
 import org.db.gora.schema.SchemaBuilder;
 import org.db.gora.schema.SchemaBuilder.ChildInfo;
 import org.db.gora.schema.SchemaBuilder.ClassInfo;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
-public class FieldValueTest {
+import junit.framework.TestCase;
+
+public class FieldValueTest extends TestCase {
 	SqliteSchema schema;
 	
-	@Before
+	@Override
 	public void setUp() throws DataIntegrityException {
 		schema = createSchema();
 	}
 	
-	@Test
 	public void testFieldValues() throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
 		Field f = FieldAccess.class.getDeclaredField("intField");
 		FieldAccess fa = new FieldAccess();
@@ -43,7 +39,6 @@ public class FieldValueTest {
 		Assert.assertEquals(expected, declared);
 	}
 	
-	@Test
 	public void testChildValues() throws Exception {
 		Field f = FieldAccess.class.getDeclaredField("lst");
 		FieldAccess fa = new FieldAccess();
@@ -56,8 +51,8 @@ public class FieldValueTest {
 		Assert.assertEquals(1, fa.lst.size());
 	}
 	
-	@Test
 	public void testQueryBuilder() throws DataIntegrityException {
+
 		TableQueryBuilder builder = schema.getQueryBuilder(Invoice.class);
 		System.out.print(getTableSchema(builder.tableData));
 		System.out.println(builder.getSelectByIdQuery());
@@ -113,11 +108,7 @@ public class FieldValueTest {
 		builder.append(String.format("\tPRIMARY KEY(%s)\n", table.primaryKey.columnName));
 		builder.append(");\n");
 		for (IndexData id: table.indice) {
-			if (id.isUnique) {
-				builder.append("CREATE UNIQUE INDEX ");
-			} else {
-				builder.append("CREATE INDEX ");
-			}
+            builder.append(String.format("CREATE %s INDEX ", id.isUnique ? "UNIQUE" : ""));
 			for (int i = 0; i < id.fields.length; i++) {
 				if (i > 0) {
 					builder.append("_");

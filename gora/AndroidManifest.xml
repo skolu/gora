@@ -3,5 +3,7 @@
           package="org.db.gora"
           android:versionCode="1"
           android:versionName="1.0">
+          
     <uses-sdk android:targetSdkVersion="11" android:minSdkVersion="11"/>
+    <application />
 </manifest>
