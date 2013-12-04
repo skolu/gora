@@ -150,6 +150,10 @@ public class SqliteManager implements DataManager {
                             }
                         }
 
+                        if (SqliteEvent.class.isAssignableFrom(entity.getClass())) {
+                            ((SqliteEvent) entity).onRead();
+                        }
+
                         return entity;
 
                     } catch (Exception e) {
@@ -183,26 +187,33 @@ public class SqliteManager implements DataManager {
 	 * Writes (insert or update) an entity. 
 	 */
 	@Override
-	public <T> void write(T entity) throws DataAccessException {
+	public <T> boolean write(T entity) throws DataAccessException {
 		if (entity == null) {
 			throw new DataAccessException("SqliteManager: Write: Null object");
 		}
 		if (mDb == null) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is null");
+			throw new DataAccessException("SqliteManager: Write: Sqlite database is null");
 		}
 		if (!mDb.isOpen()) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is not open");
+			throw new DataAccessException("SqliteManager: Write: Sqlite database is not open");
 		}
 		if (mDb.isReadOnly()) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is read-only");
+			throw new DataAccessException("SqliteManager: Write: Sqlite database is read-only");
 		}
+
+        if (SqliteEvent.class.isAssignableFrom(entity.getClass())) {
+            if (!((SqliteEvent) entity).onWrite()) {
+                return false;
+            }
+        }
 		
 		mDb.beginTransactionNonExclusive();
 		try {
 			write(entity, 0, true);
 			mDb.setTransactionSuccessful();
+            return true;
 		} catch (Exception e) {
-			throw new DataAccessException("SqliteManager: Delete: Internal exception", e); 
+			throw new DataAccessException("SqliteManager: Write: Internal exception", e);
 		} finally {
 			mDb.endTransaction();
 		}
@@ -285,6 +296,10 @@ public class SqliteManager implements DataManager {
 					if (c.moveToNext()) {
 						entity = clazz.newInstance();
 						populateStorage(entity, builder.tableData.fields, c);
+                        if (SqliteEvent.class.isAssignableFrom(entity.getClass())) {
+                            ((SqliteEvent) entity).onRead();
+                        }
+
 					} 
 				} finally {
 					c.close();
@@ -332,7 +347,8 @@ public class SqliteManager implements DataManager {
 					}
 					Object chobj = builder.getTableData().tableClass.newInstance();
 					populateStorage(chobj, builder.getTableData().fields, cc);
-					rows[childCount] = chobj;
+
+                    rows[childCount] = chobj;
 					childCount++;
 				}
 			} finally {
@@ -439,69 +455,69 @@ public class SqliteManager implements DataManager {
 		
 		if (withChildren) {
 			List<ChildTableData> children = mSchema.getChildren(clazz);
-			for (ChildTableData child: children) {
-				long[] ids = null;
-				if (!isInsert) {
-					TableQueryBuilder.LinkedQueryBuilder childBuilder = mSchema.getLinkedQueryBuilder(child.childClass, clazz);
-					Cursor cc = mDb.rawQuery(childBuilder.getSelectIdByLinkedIdQuery(), new String[]{Long.toString(id)});
-					if (cc != null) {
-						ids = new long[256];
-						int pos = 0;
-						try {
-							while (cc.moveToNext()) {
-								ids[pos] = cc.getLong(0);
-								++pos;
-								if (pos >= ids.length) {
-									long[] newIds = new long[ids.length + 256];
-									System.arraycopy(ids, 0, newIds, 0, ids.length);
-									ids = newIds;
-								}
-							}
-							long[] newIds = new long[pos];
-							System.arraycopy(ids, 0, newIds, 0, pos);
-							ids = newIds;
-						} finally {
-							cc.close();
-						}
-					}
-				}
-				
-				Object childObject = child.valueAccessor.getChildren(scope);
-				if (childObject != null) {
-					switch(child.linkType) {
-					case SINGLE: {
-						long childId = write(childObject, id, true);
-						clearIdInArray(childId, ids);
-					}
-					break;
-					
-					case LIST: {
-						List<?> list = (List<?>) childObject;
-						for (Object lo: list) {
-							long childId = write(lo, id, true);
-							clearIdInArray(childId, ids);
-						}
-					}
-					break;
-					
-					case SET: {
-						Set<?> list = (Set<?>) childObject;
-						for (Object lo: list) {
-							long childId = write(lo, id, true);
-							clearIdInArray(childId, ids);
-						}
-					}
-					break;
-					}
-				}
-				if (!isInsert && ids != null) {
-					for (long chid: ids) {
-						if (chid != 0) {
-							delete(child.childClass, chid);
-						}
-					}
-				}
-			}
+            if (children != null) {
+                for (ChildTableData child: children) {
+                    long[] ids = null;
+                    if (!isInsert) {
+                        TableQueryBuilder.LinkedQueryBuilder childBuilder = mSchema.getLinkedQueryBuilder(child.childClass, clazz);
+                        Cursor cc = mDb.rawQuery(childBuilder.getSelectIdByLinkedIdQuery(), new String[]{Long.toString(id)});
+                        if (cc != null) {
+                            ids = new long[256];
+                            int pos = 0;
+                            try {
+                                while (cc.moveToNext()) {
+                                    ids[pos] = cc.getLong(0);
+                                    ++pos;
+                                    if (pos >= ids.length) {
+                                        ids = Arrays.copyOf(ids, ids.length + 256);
+                                    }
+                                }
+                                long[] newIds = new long[pos];
+                                System.arraycopy(ids, 0, newIds, 0, pos);
+                                ids = newIds;
+                            } finally {
+                                cc.close();
+                            }
+                        }
+                    }
+
+                    Object childObject = child.valueAccessor.getChildren(scope);
+                    if (childObject != null) {
+                        switch(child.linkType) {
+                            case SINGLE: {
+                                long childId = write(childObject, id, true);
+                                clearIdInArray(childId, ids);
+                            }
+                            break;
+
+                            case LIST: {
+                                List<?> list = (List<?>) childObject;
+                                for (Object lo: list) {
+                                    long childId = write(lo, id, true);
+                                    clearIdInArray(childId, ids);
+                                }
+                            }
+                            break;
+
+                            case SET: {
+                                Set<?> list = (Set<?>) childObject;
+                                for (Object lo: list) {
+                                    long childId = write(lo, id, true);
+                                    clearIdInArray(childId, ids);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if (!isInsert && ids != null) {
+                        for (long chid: ids) {
+                            if (chid != 0) {
+                                delete(child.childClass, chid);
+                            }
+                        }
+                    }
+                }
+            }
 		}
 		
 		return id;

@@ -1,5 +1,6 @@
 package org.db.gora;
 
+import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +73,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return builder.toString();
     }
 
+    static char[] sCamelCase = new char[1024];
+    static synchronized String toCamelCase(String str) {
+        if (str == null) return str;
+        int pos = 0;
+        boolean doCapitalize = true;
+        for (int i = 0; i < str.length(); ++i) {
+            char ch = str.charAt(i);
+            if (Character.isLetterOrDigit(ch)) {
+                if (doCapitalize && Character.isLetter(ch)) {
+                    ch = Character.toUpperCase(ch);
+                }
+                sCamelCase[pos] = ch;
+                ++pos;
+                doCapitalize = false;
+            }
+            else if (ch == '_') {
+                doCapitalize = true;
+            }
+        }
+
+        return new String(sCamelCase, 0, pos);
+    }
+
     static String getColumnSyntax(String tableName, DbColumnInfo columnInfo) {
         StringBuilder builder = new StringBuilder();
 
@@ -104,9 +128,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         builder.append("Create Index ");
         if (indexInfo.indexName == null) {
-            builder.append(indexInfo.tableName);
+            builder.append(toCamelCase(indexInfo.tableName));
             for (String columnName: indexInfo.columns) {
-                builder.append(columnName);
+                builder.append(toCamelCase(columnName));
             }
             builder.append("Idx");
         }
@@ -179,7 +203,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 }
             }
 
-            Cursor fieldCursor = db.rawQuery("Pragma table_info(?);", new String[]{tableData.tableName});
+            Cursor fieldCursor = db.rawQuery(String.format("Pragma table_info('%s');", tableData.tableName), null);
             while (fieldCursor.moveToNext()) {
                 String fName = fieldCursor.getString(1).toUpperCase();
                 String fType = fieldCursor.getString(2).toUpperCase();
@@ -211,17 +235,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     DbColumnType dbInfo = dbColumns.get(cInfo.columnName.toUpperCase());
                     if (dbInfo == null) {
                         String colSyntax = getColumnSyntax(tableInfo.tableName, cInfo);
+                        Log.i(Settings.TAG, colSyntax);
                         db.execSQL(colSyntax);
                     }
                 }
             } else {
                 String tblSyntax = getTableSyntax(tableInfo);
+                Log.i(Settings.TAG, tblSyntax);
                 db.execSQL(tblSyntax);
             }
 
             if (tableData.indice != null) {
                 dbIndice.clear();
-                Cursor indexCursor = db.rawQuery("Pragma index_list(?);", new String[]{tableData.tableName});
+                Cursor indexCursor = db.rawQuery(String.format("Pragma index_list('%s');", tableData.tableName), null);
                 while (indexCursor.moveToNext()) {
                     DbIndexInfo indexInfo = new DbIndexInfo();
                     indexInfo.tableName = tableData.tableName;
@@ -237,7 +263,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     } else {
                         indexInfo.columns.clear();
                     }
-                    indexCursor = db.rawQuery("Pragma index_info(?);", new String[]{indexInfo.indexName});
+                    indexCursor = db.rawQuery(String.format("Pragma index_info('%s');", indexInfo.indexName), null);
                     while (indexCursor.moveToNext()) {
 //                      int rank = indexCursor.getInt(1);
                         String idxColumn = indexCursor.getString(2);
@@ -272,6 +298,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         }
 
                         String idxSyntax = getIndexSyntax(foundIndex);
+                        Log.i(Settings.TAG, idxSyntax);
                         db.execSQL(idxSyntax);
                     }
                 }

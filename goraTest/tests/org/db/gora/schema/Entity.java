@@ -1,8 +1,10 @@
 package org.db.gora.schema;
 
+import org.db.gora.SqliteEvent;
+
 import java.util.Date;
 
-public class Entity extends Row {
+public class Entity extends Row  implements SqliteEvent {
 	@SqlColumn(name="cloud_key", index=true)
 	public String cloudKey;
 
@@ -17,4 +19,18 @@ public class Entity extends Row {
 	
 	@SqlColumn(name="name", nullable=false, index=true)
 	public String name;
+
+    @Override
+    public void onRead() {
+    }
+
+    @Override
+    public boolean onWrite() {
+        if (getId() == 0) {
+            created = new Date();
+        }
+        modified = new Date();
+        return true;
+    }
+
 }

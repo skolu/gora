@@ -81,7 +81,7 @@ public abstract class SqliteSchema {
 				}
 			}
 		}
-		
+
 		table.tableNo = tableMap.size();
 		tableMap.put(table.tableClass, table);
 	}

@@ -43,9 +43,11 @@ public class SchemaUtils {
 
             classInfo = SchemaBuilder.extractClassInfo(Inventory.class);
             table = SchemaBuilder.createTableData(classInfo);
+            sSchema.registerTableData(table);
 
             classInfo = SchemaBuilder.extractClassInfo(Customer.class);
             table = SchemaBuilder.createTableData(classInfo);
+            sSchema.registerTableData(table);
 
         } catch (DataIntegrityException e) {
             e.printStackTrace();
