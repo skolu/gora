@@ -6,26 +6,17 @@ import java.util.List;
 
 
 import junit.framework.Assert;
-import org.db.gora.ChildValueAccess;
-import org.db.gora.DataIntegrityException;
-import org.db.gora.SqliteSchema;
-import org.db.gora.TableData;
-import org.db.gora.ValueAccess;
-import org.db.gora.schema.Customer;
-import org.db.gora.schema.Inventory;
 import org.db.gora.schema.Invoice;
-import org.db.gora.schema.SchemaBuilder;
-import org.db.gora.schema.SchemaBuilder.ChildInfo;
-import org.db.gora.schema.SchemaBuilder.ClassInfo;
 
 import junit.framework.TestCase;
+import org.db.gora.schema.SchemaUtils;
 
 public class FieldValueTest extends TestCase {
 	SqliteSchema schema;
-	
+
 	@Override
 	public void setUp() throws DataIntegrityException {
-		schema = createSchema();
+		schema = SchemaUtils.getSchema();
 	}
 	
 	public void testFieldValues() throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
@@ -56,26 +47,17 @@ public class FieldValueTest extends TestCase {
 		TableQueryBuilder builder = schema.getQueryBuilder(Invoice.class);
 		System.out.print(getTableSchema(builder.tableData));
 		System.out.println(builder.getSelectByIdQuery());
-		TableQueryBuilder.LinkedQueryBuilder lb = schema.getLinkedQueryBuilder(Invoice.InvoiceItem.class, Invoice.class);
-		System.out.println(lb.getSelectByIdQuery());
+		//TableQueryBuilder.LinkedQueryBuilder lb = schema.getLinkedQueryBuilder(Invoice.InvoiceItem.class, Invoice.class);
+		//System.out.println(lb.getSelectByIdQuery());
 
-		lb = schema.getLinkedQueryBuilder(Invoice.InvoiceItemAttribute.class, Invoice.class);
-		System.out.println(lb.getSelectByIdQuery());
+		//lb = schema.getLinkedQueryBuilder(Invoice.InvoiceItemAttribute.class, Invoice.class);
+		//System.out.println(lb.getSelectByIdQuery());
 
-		lb = schema.getLinkedQueryBuilder(Invoice.InvoicePayment.class, Invoice.class);
-		System.out.println(lb.getSelectByIdQuery());
+		//lb = schema.getLinkedQueryBuilder(Invoice.InvoicePayment.class, Invoice.class);
+		//System.out.println(lb.getSelectByIdQuery());
 	}
 	
-	private void createChildren(SqliteSchema schema, ClassInfo classInfo) throws DataIntegrityException {
-		List<ChildInfo> children = SchemaBuilder.extractChildInfo(classInfo);
-		for (ChildInfo child: children) {
-			schema.registerTableData(child.childData);
-			schema.registerChildTable(child.childLink);
-			
-			createChildren(schema, child.childClassInfo);
-		}
-	}
-	
+
 	private String getSqliteColumnType(FieldDataType dataType) {
 		switch (dataType) {
 		case BOOLEAN:
@@ -127,34 +109,7 @@ public class FieldValueTest extends TestCase {
 		}
 		return builder.toString();
 	}
-	public SqliteSchema createSchema() throws DataIntegrityException {
-		SqliteSchema schema = new SqliteSchema();
-		ClassInfo classInfo = SchemaBuilder.extractClassInfo(Invoice.class);
-		TableData table = SchemaBuilder.createTableData(classInfo);
 
-		Assert.assertNotNull(table);
-		
-		schema.registerTableData(table);
-
-		List<TableLinkData> linkData = SchemaBuilder.extractLinkData(classInfo, table);
-		for (TableLinkData link: linkData) {
-			schema.registerEntityLink(link); 
-		}
-		
-		createChildren(schema, classInfo);
-		
-		Assert.assertNotNull(schema.getTableData(Invoice.class));
-		Assert.assertNotNull(schema.getTableData(Invoice.InvoiceItem.class));
-		Assert.assertNotNull(schema.getTableData(Invoice.InvoicePayment.class));
-
-		classInfo = SchemaBuilder.extractClassInfo(Inventory.class);
-		table = SchemaBuilder.createTableData(classInfo);
-	
-		classInfo = SchemaBuilder.extractClassInfo(Customer.class);
-		table = SchemaBuilder.createTableData(classInfo);
-		return schema;
-	}
-	
 	public static class FieldAccess {
 		public int intField;
 		public ArrayList<? extends FieldAccessChild> lst;

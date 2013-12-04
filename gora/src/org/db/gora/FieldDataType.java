@@ -10,5 +10,5 @@ public enum FieldDataType {
 	BOOLEAN,
 	STRING,
 	DATE,
-	BYTEARRAY;
+	BYTEARRAY,
 }

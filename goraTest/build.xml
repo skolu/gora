@@ -89,4 +89,8 @@
     <!-- version-tag: 1 -->
     <import file="${sdk.dir}/tools/ant/build.xml" />
 
+    <target name="run-tests">
+    <test-junit includedTests="pathToPackageContainingTests}/*.class" />
+</target>
+
 </project>

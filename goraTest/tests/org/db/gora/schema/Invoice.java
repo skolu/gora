@@ -5,9 +5,6 @@ import java.util.List;
 import java.util.TreeSet;
 
 import org.db.gora.WhenLinkBroken;
-import org.db.gora.schema.SqlChild;
-import org.db.gora.schema.SqlColumn;
-import org.db.gora.schema.SqlLinkedEntity;
 
 @SqlTable(name="Invoice")
 public class Invoice extends Entity {

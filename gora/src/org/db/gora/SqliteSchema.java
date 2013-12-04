@@ -6,13 +6,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-public class SqliteSchema {
+public abstract class SqliteSchema {
 	
 	final Map<Class<?>, TableData> tableMap = new HashMap<Class<?>, TableData>();
 	public TableData getTableData(Class<?> tableClass) {
 		return tableMap.get(tableClass);
 	}
-	
+
+    public abstract int getDatabaseVersion();
+
 	public void registerTableData(TableData table) throws DataIntegrityException {
 		if (table == null) return;
 		

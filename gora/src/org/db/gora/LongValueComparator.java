@@ -12,8 +12,8 @@ final class LongValueComparator implements Comparator<Object> {
 	public int compare(Object lhs, Object rhs) {
 		int result = 0;
 		try {
-			long id1 = (long) (Long) getter.getValue(lhs);
-			long id2 = (long) (Long) getter.getValue(lhs);
+			long id1 = (Long) getter.getValue(lhs);
+			long id2 = (Long) getter.getValue(rhs);
 			if (id1 < id2) {
 				result = -1;
 			} 

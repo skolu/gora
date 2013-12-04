@@ -3,6 +3,7 @@ package org.db.gora;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -22,18 +23,161 @@ public class SqliteManager implements DataManager {
 		mValues = new ConcurrentLinkedQueue<ContentValues>();
 	}
 
-//    @Override
-//    public <E, T> ClosableIterator<E> readLinks(Class<E> entityClass, Class<T> clazz, long id) {
-//    }
+    public <T> PredicateBuilder getPredicateBuilder(Class<T> clazz) throws DataAccessException {
+        if (clazz == null) {
+            throw new DataAccessException("SqliteManager: Write: Null class");
+        }
+        TableData tableData = mSchema.getTableData(clazz);
+        if (tableData == null) {
+            throw new DataAccessException(String.format("SqliteManager: Class %s is not registered", clazz.getName()));
+        }
+        return new PredicateBuilder(tableData);
+    }
 
-	/**
-	 * Reads an entity by id
-	 * @throws DataAccessException 
-	 */
-	@Override
-	public <T> T read(Class<T> clazz, long id) throws DataAccessException {
-		return read(clazz, id, false);
-	}
+    public <T> long[] queryIds(Class<T> clazz, String where, String[] whereArgs) throws DataAccessException {
+        if (clazz == null) {
+            throw new DataAccessException("SqliteManager: QueryIds: Null class");
+        }
+        if (mDb == null) {
+            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is null");
+        }
+        if (!mDb.isOpen()) {
+            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is not open");
+        }
+
+        TableData tableData = mSchema.getTableData(clazz);
+        if (tableData == null) {
+            throw new DataAccessException(String.format("SqliteManager: QueryIds: class %s is not registered", clazz.getName()));
+        }
+
+        if (where == null) {
+            where = "1";
+        } else if (where.length() == 0) {
+            where = "1";
+        }
+
+        String query = String.format("SELECT %s FROM %s WHERE %s", tableData.primaryKey.columnName, tableData.tableName, where);
+        Cursor cursor = mDb.rawQuery(query, whereArgs);
+        if (cursor != null) {
+            long[] ids = new long[256];
+            int pos = 0;
+            if (cursor.moveToNext()) {
+                ids[pos] = cursor.getLong(0);
+                ++pos;
+                if (pos >= ids.length) {
+                    ids = Arrays.copyOf(ids, ids.length * 2);
+                }
+            }
+            cursor.close();
+            return Arrays.copyOf(ids, pos);
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Retrieves entities according to where clause
+     */
+    public <T> ClosableIterator<T> query (Class<T> clazz, String where, String[] whereArgs) throws DataAccessException {
+        if (clazz == null) {
+            throw new DataAccessException("SqliteManager: Query: Null class");
+        }
+        if (mDb == null) {
+            throw new DataAccessException("SqliteManager: Query: Sqlite database is null");
+        }
+        if (!mDb.isOpen()) {
+            throw new DataAccessException("SqliteManager: Query: Sqlite database is not open");
+        }
+
+        TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
+        if (builder == null) {
+            throw new DataAccessException(String.format("SqliteManager: Query: class %s is not registered", clazz.getName()));
+        }
+
+        if (where == null) {
+            where = "1";
+        } else if (where.length() == 0) {
+            where = "1";
+        }
+
+        return query(builder, where, whereArgs);
+    }
+
+    private <T> ClosableIterator<T> query (TableQueryBuilder builder, String where, final String[] whereArgs) {
+        final String query = builder.getSelectQuery() + " WHERE " + where;
+        final TableData tableData = builder.tableData;
+        final List<ChildTableData> children = mSchema.getChildren(tableData.tableClass);
+
+        return new ClosableIterator<T>() {
+            Cursor cursor = mDb.rawQuery(query, whereArgs);
+            @Override
+            public boolean hasNext() {
+                if (cursor == null) return false;
+
+                if (cursor.isLast() || cursor.isAfterLast()) {
+                    close();
+                    cursor = null;
+                    return false;
+                }
+
+                return true;
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public T next() {
+                if (cursor == null) {
+                    throw new NoSuchElementException();
+                }
+
+                if (cursor.moveToNext()) {
+                    try {
+                        T entity = (T) tableData.tableClass.newInstance();
+
+                        populateStorage(entity, tableData.fields, cursor);
+
+                        long id = (Long) tableData.primaryKey.valueAccessor.getValue(entity);
+
+                        if (children != null) {
+                            for (ChildTableData child: children) {
+                                Object[] childRows = readChildren(id, tableData.tableClass, child.childClass);
+                                if (childRows != null) {
+                                    for (Object row: childRows) {
+                                        child.valueAccessor.appendChild(row, entity);
+                                    }
+                                }
+                            }
+                        }
+
+                        return entity;
+
+                    } catch (Exception e) {
+                        Log.e(Settings.TAG, "SqlManager: query", e);
+                        throw new NoSuchElementException();
+                    }
+                } else {
+                    close();
+                    throw new NoSuchElementException();
+                }
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void close() {
+                if (cursor != null) {
+                    if (!cursor.isClosed()) {
+                        cursor.close();
+                    }
+                    cursor = null;
+                }
+            }
+        };
+    }
 
 	/**
 	 * Writes (insert or update) an entity. 
@@ -108,7 +252,16 @@ public class SqliteManager implements DataManager {
 		mDb.delete(builder.getTableData().tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
 	}
 
-	private <T> T read(Class<T> clazz, long id, boolean skipChildren) throws DataAccessException {
+    /**
+     * Reads an entity by id
+     * @throws DataAccessException
+     */
+    @Override
+    public <T> T read(Class<T> clazz, long id) throws DataAccessException {
+        return read(clazz, id, false);
+    }
+
+    private <T> T read(Class<T> clazz, long id, boolean skipChildren) throws DataAccessException {
 		if (clazz == null) {
 			throw new DataAccessException("SqliteManager: Read: class is null");
 		}
@@ -353,6 +506,7 @@ public class SqliteManager implements DataManager {
 		
 		return id;
 	}
+
 
 	static void populateStorage(Object storage, FieldData[] fields, Cursor from) throws Exception {
 		if (storage == null || fields == null || from == null) return;

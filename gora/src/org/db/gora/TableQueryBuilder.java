@@ -9,7 +9,59 @@ final class TableQueryBuilder {
 	public TableQueryBuilder(TableData tableData) {
 		this.tableData = tableData;
 	}
-	
+
+    private String selectByIdQuery = null;
+    public String getSelectByIdQuery() {
+        if (selectByIdQuery == null) {
+            selectByIdQuery = getSelectClause();
+            selectByIdQuery = selectByIdQuery.concat(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
+            selectByIdQuery = selectByIdQuery.concat(String.format(" WHERE t%d.%s = ?", tableData.tableNo, tableData.primaryKey.columnName));
+        }
+        return selectByIdQuery;
+    }
+
+    private String deleteByIdWhereClause = null;
+    public String getDeleteByIdWhereClause() {
+        if (deleteByIdWhereClause == null) {
+            deleteByIdWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
+        }
+        return deleteByIdWhereClause;
+    }
+
+    private String selectClause;
+    String getSelectClause() {
+        if (selectClause == null) {
+            StringBuilder builder = new StringBuilder();
+            builder.append("SELECT ");
+            for (int i = 0; i < tableData.fields.length; ++i) {
+                FieldData field = tableData.fields[i];
+                if (i > 0) builder.append(", ");
+                builder.append(String.format("t%d.%s", tableData.tableNo, field.columnName));
+            }
+            selectClause = builder.toString();
+        }
+        return selectClause;
+    }
+
+    private String selectQuery;
+    String getSelectQuery() {
+        if (selectQuery == null) {
+            selectQuery = String.format("%s FROM %s AS t%d ", getSelectClause(), tableData.tableName, tableData.tableNo);
+        }
+        return selectQuery;
+    }
+
+    private String updateWhereClause;
+    String getUpdateWhereClause() {
+        if (updateWhereClause == null) {
+            updateWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
+        }
+        return updateWhereClause;
+    }
+
+
+    final Map<Class<?>, LinkedQueryBuilder> linkedBuilders = new HashMap<Class<?>, LinkedQueryBuilder>();
+
 	final class LinkedQueryBuilder {
 		final TableData[] pathToId;
 		public LinkedQueryBuilder(TableData[] pathToId) {
@@ -100,47 +152,4 @@ final class TableQueryBuilder {
 		}
 	}
 	
-	private String selectByIdQuery = null;
-	public String getSelectByIdQuery() {
-		if (selectByIdQuery == null) {
-            selectByIdQuery = getSelectClause();
-            selectByIdQuery = selectByIdQuery.concat(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
-            selectByIdQuery = selectByIdQuery.concat(String.format(" WHERE t%d.%s = ?", tableData.tableNo, tableData.primaryKey.columnName));
-		}
-		return selectByIdQuery;
-	}
-	
-	private String deleteByIdWhereClause = null;
-	public String getDeleteByIdWhereClause() {
-		if (deleteByIdWhereClause == null) {
-            deleteByIdWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
-		}
-		return deleteByIdWhereClause;
-	}
-	
-	private String selectClause;
-    String getSelectClause() {
-    	if (selectClause == null) {
-    		StringBuilder builder = new StringBuilder();
-    		builder.append("SELECT ");
-    		for (int i = 0; i < tableData.fields.length; ++i) {
-    			FieldData field = tableData.fields[i];
-    			if (i > 0) builder.append(", ");
-    			builder.append(String.format("t%d.%s", tableData.tableNo, field.columnName));
-    		}
-    		selectClause = builder.toString();
-    	}
-    	return selectClause;
-    }
-
-    private String updateWhereClause;
-    String getUpdateWhereClause() {
-    	if (updateWhereClause == null) {
-    		updateWhereClause = String.format("%s = ?", tableData.primaryKey.columnName);
-    	}
-    	return updateWhereClause;
-    }
-    
-    
-    final Map<Class<?>, LinkedQueryBuilder> linkedBuilders = new HashMap<Class<?>, LinkedQueryBuilder>();
 }
