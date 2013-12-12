@@ -218,8 +218,8 @@ public class SqliteManager implements DataManager {
 			mDb.endTransaction();
 		}
 	}
-	
-	/**
+
+    /**
 	 * Deletes an entity
 	 */
 	@Override
