@@ -12,7 +12,7 @@ import junit.framework.TestCase;
 import org.db.gora.schema.SchemaUtils;
 
 public class FieldValueTest extends TestCase {
-	SqliteSchema schema;
+	SQLiteSchema schema;
 
 	@Override
 	public void setUp() throws DataIntegrityException {

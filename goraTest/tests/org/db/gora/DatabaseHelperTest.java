@@ -7,7 +7,7 @@ import org.db.gora.schema.Customer;
 import org.db.gora.schema.SchemaUtils;
 
 public class DatabaseHelperTest extends AndroidTestCase {
-    SqliteSchema schema;
+    SQLiteSchema schema;
     DatabaseHelper helper;
 
     @Override
@@ -20,7 +20,7 @@ public class DatabaseHelperTest extends AndroidTestCase {
         SQLiteDatabase db = helper.getWritableDatabase();
         Assert.assertNotNull(db);
 
-        SqliteManager sm = new SqliteManager(db, schema);
+        SQLiteManager sm = new SQLiteManager(db, schema);
 
         Customer customer = new Customer();
         customer.name = "Sergey Kolupaev";

@@ -13,15 +13,15 @@ import android.util.Log;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
-    public DatabaseHelper(Context context, String databaseName, SqliteSchema schema) {
+    public DatabaseHelper(Context context, String databaseName, SQLiteSchema schema) {
         super(context, databaseName, null, schema.getDatabaseVersion());
 
         mSchema = schema;
     }
 
-    final SqliteSchema mSchema;
+    final SQLiteSchema mSchema;
 
-    public SqliteSchema getSchema() {
+    public SQLiteSchema getSchema() {
         return mSchema;
     }
 
@@ -181,7 +181,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return columnInfo;
     }
 
-    protected static void adjustDatabaseSchema(SQLiteDatabase db, SqliteSchema sqlSchema) {
+    protected static void adjustDatabaseSchema(SQLiteDatabase db, SQLiteSchema sqlSchema) {
 
         Map<String, DbColumnType> dbColumns = new HashMap<String, DbColumnType>();
         List<DbIndexInfo> dbIndice = new ArrayList<DbIndexInfo>();

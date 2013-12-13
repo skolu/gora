@@ -1,8 +1,8 @@
 package org.db.gora;
 
 public class TableLinkData {
-	public Class<?> entityClass; 
-	public Class<?> linkClass; 
-	public FieldData linkField;
+	public Class<?> masterClass;
+	public Class<?> detailClass;
+	public FieldData detailField;
 	public WhenLinkBroken whenBroken;
 }

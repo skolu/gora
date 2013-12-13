@@ -6,7 +6,7 @@ import org.db.gora.schema.Invoice;
 import org.db.gora.schema.SchemaUtils;
 
 public class PredicateBuilderTest extends TestCase {
-    SqliteSchema schema;
+    SQLiteSchema schema;
 
     @Override
     public void setUp() throws DataIntegrityException {

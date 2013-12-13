@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-public abstract class SqliteSchema {
+public abstract class SQLiteSchema {
 	
 	final Map<Class<?>, TableData> tableMap = new HashMap<Class<?>, TableData>();
 	public TableData getTableData(Class<?> tableClass) {
@@ -85,25 +85,43 @@ public abstract class SqliteSchema {
 		table.tableNo = tableMap.size();
 		tableMap.put(table.tableClass, table);
 	}
-	
-	final Map<Class<?>, TableLinkData> entityLinkMap = new HashMap<Class<?>, TableLinkData>();
+
+	final Map<Class<?>, List<TableLinkData>> entityLinkMap = new HashMap<Class<?>, List<TableLinkData>>();
 	public void registerEntityLink(TableLinkData link) throws DataIntegrityException {
 		if (link == null) return;
-		if (link.entityClass == null) {
+		if (link.masterClass == null) {
 			throw new DataIntegrityException("Entity link: entity class is null"); 
 		}
-		if (link.linkClass == null) {
+		if (link.detailClass == null) {
 			throw new DataIntegrityException("Entity link: link class is null"); 
 		}
-		if (link.linkField == null) {
+		if (link.detailField == null) {
 			throw new DataIntegrityException("Entity link: link field is null"); 
 		}
-		TableData linkData = getTableData(link.linkClass);
-		if (linkData == null) {
-			throw new DataIntegrityException(String.format("Entity link: Class %s is not registered.", link.linkClass.getName())); 
-		}
-		entityLinkMap.put(link.entityClass, link);
+		TableData detailData = getTableData(link.detailClass);
+		if (detailData == null) {
+			throw new DataIntegrityException(String.format("Entity link: Class %s is not registered.", link.detailClass.getName()));
+		} else {
+            boolean isValid = detailData.ensureIndexExists(link.detailField.columnName);
+            if (!isValid) {
+                throw new DataIntegrityException(String.format("Entity link: Table %s does not have column %s.", detailData.tableName, link.detailField.columnName));
+            }
+        }
+
+        List<TableLinkData> links = entityLinkMap.get(link.masterClass);
+        if (links == null) {
+            links = new ArrayList<TableLinkData>();
+            entityLinkMap.put(link.masterClass, links);
+        }
+        links.add(link);
 	}
+
+    public List<TableLinkData> getDetailLinks(Class<?> masterClazz) {
+        if (masterClazz != null) {
+            return entityLinkMap.get(masterClazz);
+        }
+        return null;
+    }
 	
 	/**
 	 * Contains parent/child relationship

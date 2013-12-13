@@ -1,10 +1,10 @@
 package org.db.gora.schema;
 
-import org.db.gora.SqliteEvent;
+import org.db.gora.SQLiteEvent;
 
 import java.util.Date;
 
-public class Entity extends Row  implements SqliteEvent {
+public class Entity extends Row  implements SQLiteEvent {
 	@SqlColumn(name="cloud_key", index=true)
 	public String cloudKey;
 

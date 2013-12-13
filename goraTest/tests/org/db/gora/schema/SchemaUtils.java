@@ -1,7 +1,7 @@
 package org.db.gora.schema;
 
 import org.db.gora.DataIntegrityException;
-import org.db.gora.SqliteSchema;
+import org.db.gora.SQLiteSchema;
 import org.db.gora.TableData;
 import org.db.gora.TableLinkData;
 
@@ -13,9 +13,9 @@ import java.util.List;
  */
 public class SchemaUtils {
 
-    public static SqliteSchema getSchema() {
+    public static SQLiteSchema getSchema() {
         if (sSchema == null) {
-            sSchema = new SqliteSchema() {
+            sSchema = new SQLiteSchema() {
                 @Override
                 public int getDatabaseVersion() {
                     return 1;
@@ -64,5 +64,5 @@ public class SchemaUtils {
         }
     }
 
-    static SqliteSchema sSchema;
+    static SQLiteSchema sSchema;
 }

@@ -1,5 +1,7 @@
 package org.db.gora;
 
+import java.util.Arrays;
+
 public class TableData {
     public Class<?> tableClass;
     public String tableName;
@@ -37,6 +39,35 @@ public class TableData {
         }
 
         return null;
+    }
 
+    boolean ensureIndexExists(String columnName) {
+        FieldData column = null;
+        for (FieldData fd: fields) {
+            if (fd.columnName.equalsIgnoreCase(columnName)) {
+                column = fd;
+                break;
+            }
+        }
+        if (column == null) {
+            return false;
+        }
+        if (indice != null) {
+            for (IndexData index: indice) {
+                if (index.fields[0] == column) {
+                    return true;
+                }
+            }
+        }
+
+        IndexData id = new IndexData();
+        id.fields = new FieldData[] {column};
+        if (indice != null) {
+            indice = Arrays.copyOf(indice, indice.length + 1);
+            indice[indice.length - 1] = id;
+        } else {
+            indice = new IndexData[] { id };
+        }
+        return true;
     }
 }

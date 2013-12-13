@@ -12,42 +12,112 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
-public class SqliteManager implements DataManager {
+public class SQLiteManager implements DataManager {
 	final SQLiteDatabase mDb;
-	final SqliteSchema mSchema;
+	final SQLiteSchema mSchema;
 	final ConcurrentLinkedQueue<ContentValues> mValues;
 
-	public SqliteManager(SQLiteDatabase db, SqliteSchema schema) {
+	public SQLiteManager(SQLiteDatabase db, SQLiteSchema schema) {
 		mDb = db;
 		mSchema = schema;
 		mValues = new ConcurrentLinkedQueue<ContentValues>();
 	}
 
+
+    public <M, D> long[] queryLinks(Class<D> detailClazz, Class<M> masterClazz, long masterId) throws DataAccessException, DataIntegrityException {
+        if (detailClazz == null) {
+            throw new DataIntegrityException("SQLiteManager: gueryLinks: Null detail class");
+        }
+        if (masterClazz == null) {
+            throw new DataIntegrityException("SQLiteManager: gueryLinks: Null master class");
+        }
+
+
+        TableData detailTable = mSchema.getTableData(detailClazz);
+        if (detailTable == null) {
+            throw new DataIntegrityException(String.format("SQLiteManager: Class %s is not registered", detailClazz.getName()));
+        }
+
+        TableData masterTable = mSchema.getTableData(masterClazz);
+        if (masterTable == null) {
+            throw new DataIntegrityException(String.format("SQLiteManager: Class %s is not registered", masterClazz.getName()));
+        }
+
+        List<TableLinkData> links = mSchema.getDetailLinks(masterClazz);
+        if (links == null) return null;
+
+        TableLinkData linkData = null;
+        for (TableLinkData tld: links) {
+            if (tld.detailClass == detailClazz) {
+                linkData = tld;
+                break;
+            }
+        }
+        if (linkData == null) {
+            for (TableLinkData tld: links) {
+                List<ChildTableData> children = mSchema.getChildren(detailClazz);
+                for (ChildTableData ctd: children) {
+                    if (ctd.childClass == detailClazz) {
+                        linkData = tld;
+                        break;
+                    }
+                }
+            }
+        }
+        if (linkData == null) {
+            throw new DataIntegrityException(String.format("SQLiteManager: queryLinks: There is no links between %s and %s", detailClazz.getName(), masterClazz.getName()));
+        }
+
+        String query;
+        if (linkData.detailClass == detailClazz) {
+            query = String.format("SELECT %s FROM %s WHERE %s=? ", detailTable.primaryKey.columnName, detailTable.tableName, linkData.detailField.columnName);
+        } else {
+            TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(linkData.detailClass, detailClazz);
+            query = String.format("%s WHERE t%d.%s=?", builder.getSelectDistinctParentQuery(), detailTable.tableNo, linkData.detailField.columnName);
+        }
+        Cursor cursor = mDb.rawQuery(query, new String[] {Long.toString(masterId)});
+        if (cursor != null) {
+            long[] ids = new long[256];
+            int pos = 0;
+            if (cursor.moveToNext()) {
+                ids[pos] = cursor.getLong(0);
+                ++pos;
+                if (pos >= ids.length) {
+                    ids = Arrays.copyOf(ids, ids.length * 2);
+                }
+            }
+            cursor.close();
+            return Arrays.copyOf(ids, pos);
+        }
+
+        return null;
+    }
+
     public <T> PredicateBuilder getPredicateBuilder(Class<T> clazz) throws DataAccessException {
         if (clazz == null) {
-            throw new DataAccessException("SqliteManager: Write: Null class");
+            throw new DataAccessException("SQLiteManager: Write: Null class");
         }
         TableData tableData = mSchema.getTableData(clazz);
         if (tableData == null) {
-            throw new DataAccessException(String.format("SqliteManager: Class %s is not registered", clazz.getName()));
+            throw new DataAccessException(String.format("SQLiteManager: Class %s is not registered", clazz.getName()));
         }
         return new PredicateBuilder(tableData);
     }
 
     public <T> long[] queryIds(Class<T> clazz, String where, String[] whereArgs, String orderBy) throws DataAccessException {
         if (clazz == null) {
-            throw new DataAccessException("SqliteManager: QueryIds: Null class");
+            throw new DataAccessException("SQLiteManager: QueryIds: Null class");
         }
         if (mDb == null) {
-            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is null");
+            throw new DataAccessException("SQLiteManager: QueryIds: Sqlite database is null");
         }
         if (!mDb.isOpen()) {
-            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is not open");
+            throw new DataAccessException("SQLiteManager: QueryIds: Sqlite database is not open");
         }
 
         TableData tableData = mSchema.getTableData(clazz);
         if (tableData == null) {
-            throw new DataAccessException(String.format("SqliteManager: QueryIds: class %s is not registered", clazz.getName()));
+            throw new DataAccessException(String.format("SQLiteManager: QueryIds: class %s is not registered", clazz.getName()));
         }
 
         if (where == null) {
@@ -77,18 +147,18 @@ public class SqliteManager implements DataManager {
     @Override
     public <T> FieldCursor queryFields(Class<T> clazz, String where, String[] whereArgs, String... fields) throws DataAccessException, DataIntegrityException {
         if (clazz == null) {
-            throw new DataAccessException("SqliteManager: QueryIds: Null class");
+            throw new DataAccessException("SQLiteManager: QueryIds: Null class");
         }
         if (mDb == null) {
-            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is null");
+            throw new DataAccessException("SQLiteManager: QueryIds: Sqlite database is null");
         }
         if (!mDb.isOpen()) {
-            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is not open");
+            throw new DataAccessException("SQLiteManager: QueryIds: Sqlite database is not open");
         }
 
         TableData tableData = mSchema.getTableData(clazz);
         if (tableData == null) {
-            throw new DataAccessException(String.format("SqliteManager: QueryIds: class %s is not registered", clazz.getName()));
+            throw new DataAccessException(String.format("SQLiteManager: QueryIds: class %s is not registered", clazz.getName()));
         }
 
         if (where == null) {
@@ -213,18 +283,18 @@ public class SqliteManager implements DataManager {
      */
     public <T> ClosableIterator<T> query (Class<T> clazz, String where, String[] whereArgs) throws DataAccessException {
         if (clazz == null) {
-            throw new DataAccessException("SqliteManager: Query: Null class");
+            throw new DataAccessException("SQLiteManager: Query: Null class");
         }
         if (mDb == null) {
-            throw new DataAccessException("SqliteManager: Query: Sqlite database is null");
+            throw new DataAccessException("SQLiteManager: Query: Sqlite database is null");
         }
         if (!mDb.isOpen()) {
-            throw new DataAccessException("SqliteManager: Query: Sqlite database is not open");
+            throw new DataAccessException("SQLiteManager: Query: Sqlite database is not open");
         }
 
         TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
         if (builder == null) {
-            throw new DataAccessException(String.format("SqliteManager: Query: class %s is not registered", clazz.getName()));
+            throw new DataAccessException(String.format("SQLiteManager: Query: class %s is not registered", clazz.getName()));
         }
 
         if (where == null) {
@@ -282,8 +352,8 @@ public class SqliteManager implements DataManager {
                             }
                         }
 
-                        if (SqliteEvent.class.isAssignableFrom(entity.getClass())) {
-                            ((SqliteEvent) entity).onRead();
+                        if (SQLiteEvent.class.isAssignableFrom(entity.getClass())) {
+                            ((SQLiteEvent) entity).onRead();
                         }
 
                         return entity;
@@ -321,20 +391,20 @@ public class SqliteManager implements DataManager {
 	@Override
 	public <T> boolean write(T entity) throws DataAccessException {
 		if (entity == null) {
-			throw new DataAccessException("SqliteManager: Write: Null object");
+			throw new DataAccessException("SQLiteManager: Write: Null object");
 		}
 		if (mDb == null) {
-			throw new DataAccessException("SqliteManager: Write: Sqlite database is null");
+			throw new DataAccessException("SQLiteManager: Write: Sqlite database is null");
 		}
 		if (!mDb.isOpen()) {
-			throw new DataAccessException("SqliteManager: Write: Sqlite database is not open");
+			throw new DataAccessException("SQLiteManager: Write: Sqlite database is not open");
 		}
 		if (mDb.isReadOnly()) {
-			throw new DataAccessException("SqliteManager: Write: Sqlite database is read-only");
+			throw new DataAccessException("SQLiteManager: Write: Sqlite database is read-only");
 		}
 
-        if (SqliteEvent.class.isAssignableFrom(entity.getClass())) {
-            if (!((SqliteEvent) entity).onWrite()) {
+        if (SQLiteEvent.class.isAssignableFrom(entity.getClass())) {
+            if (!((SQLiteEvent) entity).onWrite()) {
                 return false;
             }
         }
@@ -345,7 +415,7 @@ public class SqliteManager implements DataManager {
 			mDb.setTransactionSuccessful();
             return true;
 		} catch (Exception e) {
-			throw new DataAccessException("SqliteManager: Write: Internal exception", e);
+			throw new DataAccessException("SQLiteManager: Write: Internal exception", e);
 		} finally {
 			mDb.endTransaction();
 		}
@@ -357,16 +427,16 @@ public class SqliteManager implements DataManager {
 	@Override
 	public <T> void delete(Class<T> clazz, long id) throws DataAccessException {
 		if (clazz == null) {
-			throw new DataAccessException("SqliteManager: Read: class is null");
+			throw new DataAccessException("SQLiteManager: Read: class is null");
 		}
 		if (mDb == null) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is null");
+			throw new DataAccessException("SQLiteManager: Read: Sqlite database is null");
 		}
 		if (!mDb.isOpen()) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is not open");
+			throw new DataAccessException("SQLiteManager: Read: Sqlite database is not open");
 		}
 		if (mDb.isReadOnly()) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is read-only");
+			throw new DataAccessException("SQLiteManager: Read: Sqlite database is read-only");
 		}
 
 		mDb.beginTransactionNonExclusive();
@@ -374,7 +444,7 @@ public class SqliteManager implements DataManager {
 			deleteChildren(id, clazz, clazz);
 			mDb.setTransactionSuccessful();
 		} catch (Exception e) {
-			throw new DataAccessException("SqliteManager: Delete: Internal exception", e); 
+			throw new DataAccessException("SQLiteManager: Delete: Internal exception", e);
 		} finally {
 			mDb.endTransaction();
 		}
@@ -384,7 +454,7 @@ public class SqliteManager implements DataManager {
 		TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(toDelete, idClazz);
 		if (builder == null) {
             throw new DataIntegrityException(
-                    String.format("SqliteManager: deleteChildren: classes %s and %s are unrelated.", idClazz.getName(), toDelete.getName()));
+                    String.format("SQLiteManager: deleteChildren: classes %s and %s are unrelated.", idClazz.getName(), toDelete.getName()));
 		}
 		List<ChildTableData> children = mSchema.getChildren(toDelete);
 		if (children != null) {
@@ -406,18 +476,18 @@ public class SqliteManager implements DataManager {
 
     private <T> T read(Class<T> clazz, long id, boolean skipChildren) throws DataAccessException {
 		if (clazz == null) {
-			throw new DataAccessException("SqliteManager: Read: class is null");
+			throw new DataAccessException("SQLiteManager: Read: class is null");
 		}
 		if (mDb == null) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is null");
+			throw new DataAccessException("SQLiteManager: Read: Sqlite database is null");
 		}
 		if (!mDb.isOpen()) {
-			throw new DataAccessException("SqliteManager: Read: Sqlite database is not open");
+			throw new DataAccessException("SQLiteManager: Read: Sqlite database is not open");
 		}
 
 		TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
 		if (builder == null) {
-			throw new DataAccessException(String.format("SqliteManager: Read: class %s is not registered", clazz.getName()));
+			throw new DataAccessException(String.format("SQLiteManager: Read: class %s is not registered", clazz.getName()));
 		}
 
 		T entity = null;
@@ -428,8 +498,8 @@ public class SqliteManager implements DataManager {
 					if (c.moveToNext()) {
 						entity = clazz.newInstance();
 						populateStorage(entity, builder.tableData.fields, c);
-                        if (SqliteEvent.class.isAssignableFrom(entity.getClass())) {
-                            ((SqliteEvent) entity).onRead();
+                        if (SQLiteEvent.class.isAssignableFrom(entity.getClass())) {
+                            ((SQLiteEvent) entity).onRead();
                         }
 
 					} 
@@ -451,7 +521,7 @@ public class SqliteManager implements DataManager {
 				}
 			} 
 		} catch (Exception e) {
-			throw new DataAccessException("SqliteManager: Read: Internal exception", e);
+			throw new DataAccessException("SQLiteManager: Read: Internal exception", e);
 		}
 
 		return entity;
@@ -462,7 +532,7 @@ public class SqliteManager implements DataManager {
 		TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(childClazz, idClazz);
 		if (builder == null) {
 			throw new DataIntegrityException(
-					String.format("SqliteManager: readChildren: classes %s and %s are unrelated.", idClazz.getName(), childClazz.getName()));
+					String.format("SQLiteManager: readChildren: classes %s and %s are unrelated.", idClazz.getName(), childClazz.getName()));
 		}
 
 		Object[] rows = new Object[256];
@@ -550,7 +620,7 @@ public class SqliteManager implements DataManager {
 		Class<?> clazz = scope.getClass();
 		TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
 		if (builder == null) {
-			throw new DataAccessException(String.format("SqliteManager: Write: class %s is not registered", clazz.getName()));
+			throw new DataAccessException(String.format("SQLiteManager: Write: class %s is not registered", clazz.getName()));
 		}
 		TableData tableData = builder.tableData;
 

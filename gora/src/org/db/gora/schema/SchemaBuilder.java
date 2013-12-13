@@ -318,17 +318,17 @@ public class SchemaBuilder {
 			SqlLinkedEntity link = field.getAnnotation(SqlLinkedEntity.class);
 			if (link != null) {
 				TableLinkData tld = new TableLinkData();
-				tld.entityClass = link.entity();
-				tld.linkClass = classInfo.clazz;
+				tld.masterClass = link.entity();
+				tld.detailClass = classInfo.clazz;
 				tld.whenBroken = link.whenBroken();
 				SqlColumn column = field.getAnnotation(SqlColumn.class);
 				for (FieldData fd: tableData.fields) {
 					if (fd.columnName.equals(column.name())) {
-						tld.linkField = fd;
+						tld.detailField = fd;
 						break;
 					}
 				}
-				if (tld.linkField == null) {
+				if (tld.detailField == null) {
 			        throw new DataIntegrityException(
 			        		String.format("Field %s.%s is not marked as sql column.",
 			        				field.getDeclaringClass().getName(), field.getName()));
