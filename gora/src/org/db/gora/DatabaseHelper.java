@@ -1,6 +1,5 @@
 package org.db.gora;
 
-import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,7 +74,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     static char[] sCamelCase = new char[1024];
     static synchronized String toCamelCase(String str) {
-        if (str == null) return str;
+        if (str == null) return null;
         int pos = 0;
         boolean doCapitalize = true;
         for (int i = 0; i < str.length(); ++i) {
@@ -154,8 +153,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         columnInfo.columnName = fieldData.columnName;
         switch (fieldData.dataType) {
             case BOOLEAN:
-            case BYTE:
-            case SHORT:
             case INT:
             case LONG:
             case DATE:
@@ -163,11 +160,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 break;
 
             case DOUBLE:
-            case FLOAT:
                 columnInfo.columnType = DbColumnType.REAL;
                 break;
 
-            case BYTEARRAY:
+            case BYTE_ARRAY:
                 columnInfo.columnType = DbColumnType.BLOB;
                 break;
 
@@ -205,8 +201,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
             Cursor fieldCursor = db.rawQuery(String.format("Pragma table_info('%s');", tableData.tableName), null);
             while (fieldCursor.moveToNext()) {
-                String fName = fieldCursor.getString(1).toUpperCase();
-                String fType = fieldCursor.getString(2).toUpperCase();
+                String fName = fieldCursor.getString(1);
+                if (fName != null) {
+                    fName = fName.toUpperCase();
+                } else {
+                    Log.e(Settings.TAG, "Pragma table_info; see docs");
+                    continue;
+                }
+                String fType = fieldCursor.getString(2);
+                if (fType != null) {
+                    fType = fType.toUpperCase();
+                } else {
+                    Log.e(Settings.TAG, "Pragma table_info; see docs");
+                    fType = "TEXT";
+                }
                 if (pkColumn == null) {
                     pkColumn = fName;
                     if (!fType.startsWith("INT")) {

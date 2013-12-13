@@ -5,8 +5,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,27 +23,32 @@ import org.db.gora.FieldDataType;
 import org.db.gora.IndexData;
 import org.db.gora.TableData;
 import org.db.gora.TableLinkData;
-import org.db.gora.ValueAccess;
+import org.db.gora.accessors.DoubleFieldValueAccessor;
+import org.db.gora.accessors.DoublePropertyValueAccessor;
+import org.db.gora.accessors.GenericFieldValueAccessor;
+import org.db.gora.accessors.GenericPropertyValueAccessor;
+import org.db.gora.accessors.IntFieldValueAccessor;
+import org.db.gora.accessors.IntPropertyValueAccessor;
 
 public class SchemaBuilder {
+
 	static FieldDataType resolveSimpleDataType(Class<?> clazz) throws DataIntegrityException {
         if (clazz.isPrimitive()) {
-            if (clazz == Byte.TYPE) return FieldDataType.BYTE;
-            if (clazz == Short.TYPE) return FieldDataType.SHORT;
+            if (clazz == Byte.TYPE) return FieldDataType.INT;
+            if (clazz == Short.TYPE) return FieldDataType.INT;
             if (clazz == Integer.TYPE) return FieldDataType.INT;
             if (clazz == Long.TYPE) return FieldDataType.LONG;
-            if (clazz == Float.TYPE) return FieldDataType.FLOAT;
+            if (clazz == Float.TYPE) return FieldDataType.DOUBLE;
             if (clazz == Double.TYPE) return FieldDataType.DOUBLE;
             if (clazz == Boolean.TYPE) return FieldDataType.BOOLEAN;
-            
-            throw new DataIntegrityException(String.format("Unsupported primitive field type: %s", clazz.getName()));
-        }   
-        String className = clazz.getName();
-        if (className.equals("java.lang.String")) return FieldDataType.STRING;
-        if (className.equals("java.util.Date")) return FieldDataType.DATE;
-        if (className.equals("[B")) return FieldDataType.BYTEARRAY;
+        } else {
+            if (clazz == String.class) return FieldDataType.STRING;
+            if (clazz == Date.class) return FieldDataType.DATE;
+            if (clazz == byte[].class) return FieldDataType.BYTE_ARRAY;
+            if (clazz == BigDecimal.class) return FieldDataType.DOUBLE;
+        }
 
-        throw new DataIntegrityException(String.format("Unsupported field type: %s", className));
+        throw new DataIntegrityException(String.format("Unsupported field type: %s", clazz.getName()));
 	} 
 	
 	public static TableData createTableData(ClassInfo classInfo) throws DataIntegrityException {
@@ -63,11 +70,22 @@ public class SchemaBuilder {
 			if (column != null) {
 				FieldData fd = new FieldData();
 				fd.columnName = column.name();
+                fd.fieldName = field.getName();
 				fd.dataType = resolveSimpleDataType(field.getType());
 				fd.nullable = column.nullable();
 				int modifiers = field.getModifiers();
 				if ((modifiers & Modifier.PUBLIC) != 0) {
-					fd.valueAccessor = new ValueAccess.ClassFieldValueAccess(field);
+                    switch (fd.dataType) {
+                        case INT:
+                            fd.valueAccessor = new IntFieldValueAccessor(field);
+                            break;
+                        case DOUBLE:
+                            fd.valueAccessor = new DoubleFieldValueAccessor(field);
+                            break;
+                        default:
+                            fd.valueAccessor = new GenericFieldValueAccessor(field);
+                            break;
+                    }
 				} else {
 					Method getter = classInfo.methods.get(column.getter());
 					Method setter = classInfo.methods.get(column.setter());
@@ -92,8 +110,19 @@ public class SchemaBuilder {
 				        				getter.getDeclaringClass().getName(), getter.getName(),
 				        				setter.getDeclaringClass().getName(), setter.getName()));
 					}
+
 					fd.dataType = resolveSimpleDataType(getter.getReturnType());
-					fd.valueAccessor = new ValueAccess.ClassPropertyValueAccess(getter, setter);
+                    switch (fd.dataType) {
+                        case INT:
+                            fd.valueAccessor = new IntPropertyValueAccessor(getter, setter);
+                            break;
+                        case DOUBLE:
+                            fd.valueAccessor = new DoublePropertyValueAccessor(getter, setter);
+                            break;
+                        default:
+                            fd.valueAccessor = new GenericPropertyValueAccessor(getter, setter);
+                            break;
+                    }
 				}
 				fields.add(fd);
 				if (column.pk()) {
@@ -122,8 +151,8 @@ public class SchemaBuilder {
 			}
 		}
 		
-		tableData.fields = fields.toArray(new FieldData[0]);
-		tableData.indice = indices.toArray(new IndexData[0]);
+		tableData.fields = fields.toArray(new FieldData[fields.size()]);
+		tableData.indice = indices.toArray(new IndexData[indices.size()]);
 		return tableData;
 	}
 	
@@ -173,7 +202,7 @@ public class SchemaBuilder {
 					Method method = classInfo.methods.get(child.getter());
 					if (method == null) {
 				        throw new DataIntegrityException(
-				        		String.format("Cannot find a method %s in class: %s.%s",
+				        		String.format("Cannot find a method %s in class: %s",
 				        				child.getter(), classInfo.clazz.getName()));
 					}
 					switch(tld.linkType) {

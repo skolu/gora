@@ -2,10 +2,10 @@ package org.db.gora;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.List;
 
 
 import junit.framework.Assert;
+import org.db.gora.accessors.IntFieldValueAccessor;
 import org.db.gora.schema.Invoice;
 
 import junit.framework.TestCase;
@@ -19,11 +19,11 @@ public class FieldValueTest extends TestCase {
 		schema = SchemaUtils.getSchema();
 	}
 	
-	public void testFieldValues() throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+	public void testFieldValues() throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException, DataAccessException {
 		Field f = FieldAccess.class.getDeclaredField("intField");
 		FieldAccess fa = new FieldAccess();
 		
-		ValueAccess.ClassFieldValueAccess fv = new ValueAccess.ClassFieldValueAccess(f);
+		IntFieldValueAccessor fv = new IntFieldValueAccessor(f);
 		int declared = 100;
 		fv.setValue(Integer.valueOf(declared), fa);
 		int expected = (Integer)fv.getValue(fa);
@@ -61,21 +61,18 @@ public class FieldValueTest extends TestCase {
 	private String getSqliteColumnType(FieldDataType dataType) {
 		switch (dataType) {
 		case BOOLEAN:
-		case BYTE:
-		case SHORT:
 		case INT:
 		case LONG:
 		case DATE:
 			return "INTEGER";
 			
-		case FLOAT:
 		case DOUBLE:
 			return "REAL";
 			
 		case STRING:
 			return "TEXT";
 			
-		case BYTEARRAY:
+		case BYTE_ARRAY:
 			return "BLOB";
 		}
 		return "TEXT";

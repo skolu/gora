@@ -34,7 +34,7 @@ public class SqliteManager implements DataManager {
         return new PredicateBuilder(tableData);
     }
 
-    public <T> long[] queryIds(Class<T> clazz, String where, String[] whereArgs) throws DataAccessException {
+    public <T> long[] queryIds(Class<T> clazz, String where, String[] whereArgs, String orderBy) throws DataAccessException {
         if (clazz == null) {
             throw new DataAccessException("SqliteManager: QueryIds: Null class");
         }
@@ -56,8 +56,7 @@ public class SqliteManager implements DataManager {
             where = "1";
         }
 
-        String query = String.format("SELECT %s FROM %s WHERE %s", tableData.primaryKey.columnName, tableData.tableName, where);
-        Cursor cursor = mDb.rawQuery(query, whereArgs);
+        Cursor cursor = mDb.query(tableData.tableName, new String[] {tableData.primaryKey.columnName}, where, whereArgs, null, null, orderBy);
         if (cursor != null) {
             long[] ids = new long[256];
             int pos = 0;
@@ -75,6 +74,139 @@ public class SqliteManager implements DataManager {
         return null;
     }
 
+    @Override
+    public <T> FieldCursor queryFields(Class<T> clazz, String where, String[] whereArgs, String... fields) throws DataAccessException, DataIntegrityException {
+        if (clazz == null) {
+            throw new DataAccessException("SqliteManager: QueryIds: Null class");
+        }
+        if (mDb == null) {
+            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is null");
+        }
+        if (!mDb.isOpen()) {
+            throw new DataAccessException("SqliteManager: QueryIds: Sqlite database is not open");
+        }
+
+        TableData tableData = mSchema.getTableData(clazz);
+        if (tableData == null) {
+            throw new DataAccessException(String.format("SqliteManager: QueryIds: class %s is not registered", clazz.getName()));
+        }
+
+        if (where == null) {
+            where = "1";
+        } else if (where.length() == 0) {
+            where = "1";
+        }
+
+
+        final FieldData[] fieldData = new FieldData[fields.length + 1];
+        for (int i = 0; i < fields.length; ++i) {
+            FieldData fd = tableData.getFieldByName(fields[i]);
+            if (fd == null) {
+                throw new DataIntegrityException(String.format("Column %s has not been found in Table %s", fields[i], tableData.tableName));
+            }
+
+            fieldData[i] = fd;
+        }
+        fieldData[fields.length] = tableData.primaryKey;
+
+
+        String[] columns = new String[fields.length + 1];
+        for (int i = 0; i < fieldData.length; ++i) {
+            FieldData fd = fieldData[i];
+            columns[i] = fd.columnName;
+        }
+
+        final Cursor cursor = mDb.query(tableData.tableName, columns, where, whereArgs, null, null, null);
+        if (cursor != null) {
+            if (cursor.isBeforeFirst()) {
+                cursor.moveToNext();
+            }
+
+            return new FieldCursor() {
+                Cursor mCursor = cursor;
+                FieldData[] fields = fieldData;
+
+                @Override
+                public long getId() throws DataAccessException {
+                    if (mCursor == null) throw new DataAccessException("Cursor contains no data");
+                    return mCursor.getLong(fields.length - 1);
+                }
+
+                @Override
+                public Object getFieldValue(int fieldNo) throws DataAccessException {
+                    if (mCursor == null) throw new DataAccessException("Cursor contains no data");
+                    if (fieldNo >= 0 && fieldNo < fields.length) {
+                        if (mCursor.isNull(fieldNo)) return null;
+
+                        FieldData fd = fields[fieldNo];
+                        switch (fd.dataType) {
+                            case INT:
+                                return mCursor.getString(fieldNo);
+                            case DOUBLE:
+                                return mCursor.getDouble(fieldNo);
+                            case BOOLEAN:
+                                return mCursor.getInt(fieldNo) != 0;
+                            case DATE:
+                                return new Date(mCursor.getLong(fieldNo));
+                            case LONG:
+                                return mCursor.getLong(fieldNo);
+                            case STRING:
+                                return mCursor.getString(fieldNo);
+                            case BYTE_ARRAY:
+                                return mCursor.getBlob(fieldNo);
+                            default:
+                                return null;
+                        }
+                    }
+                    throw new IndexOutOfBoundsException();
+                }
+
+                @Override
+                public FieldDataType getFieldType(int fieldNo) {
+                    if (fieldNo >= 0 && fieldNo < fields.length) {
+                        return fields[fieldNo].dataType;
+                    }
+                    throw new IndexOutOfBoundsException();
+                }
+
+                @Override
+                public boolean eof() {
+                    if (mCursor == null) return true;
+                    if (mCursor.isClosed()) {
+                        mCursor = null;
+                        return true;
+                    }
+
+                    if (mCursor.isAfterLast()) {
+                        close();
+                        return true;
+                    }
+                    return false;
+                }
+
+                @Override
+                public boolean next() {
+                    if (mCursor == null) return false;
+                    boolean b = cursor.moveToNext();
+                    if (!b) {
+                        close();
+                    }
+                    return b;
+                }
+
+                @Override
+                public void close() {
+                    if (mCursor == null) return;
+                    if (!mCursor.isClosed()) {
+                        mCursor.close();
+                    }
+                    mCursor = null;
+                }
+            };
+        }
+
+        return null;
+    }
 
     /**
      * Retrieves entities according to where clause
@@ -537,18 +669,6 @@ public class SqliteManager implements DataManager {
 			}
 			break;
 
-			case BYTE: {
-				byte b = from.isNull(i) ? (byte) 0 : (byte) from.getInt(i);
-				value = b;
-			}
-			break;
-
-			case SHORT: {
-				short s = from.isNull(i) ? (short) 0 : (short) from.getInt(i);
-				value = s;
-			}
-			break;
-
 			case INT: {
 				int ii = from.isNull(i) ? 0 : from.getInt(i);
 				value = ii;
@@ -558,12 +678,6 @@ public class SqliteManager implements DataManager {
 			case LONG: {
 				long l = from.isNull(i) ? 0L : from.getLong(i);
 				value = l;
-			}
-			break;
-
-			case FLOAT: {
-				float f = from.isNull(i) ? 0.0f : from.getFloat(i);
-				value = f;
 			}
 			break;
 
@@ -591,7 +705,7 @@ public class SqliteManager implements DataManager {
 			}
 			break;
 
-			case BYTEARRAY: {
+			case BYTE_ARRAY: {
 				byte[] ba = from.isNull(i) ? null : from.getBlob(i);
 				value = ba;
 			}
@@ -615,24 +729,12 @@ public class SqliteManager implements DataManager {
                 	values.put(field.columnName, (Boolean) field.valueAccessor.getValue(storage));
                 	break;
 
-                case BYTE:
-                	values.put(field.columnName, (Byte) field.valueAccessor.getValue(storage));
-                    break;
-
-                case SHORT: 
-                	values.put(field.columnName, (Short) field.valueAccessor.getValue(storage));
-                break;
-
                 case INT:
                 	values.put(field.columnName, (Integer) field.valueAccessor.getValue(storage));
                     break;
 
                 case LONG:
                 	values.put(field.columnName, (Long) field.valueAccessor.getValue(storage));
-                    break;
-
-                case FLOAT:
-                	values.put(field.columnName, (Float)field.valueAccessor.getValue(storage));
                     break;
 
                 case DOUBLE:
@@ -650,7 +752,7 @@ public class SqliteManager implements DataManager {
                 }
                 break;
 
-                case BYTEARRAY: 
+                case BYTE_ARRAY:
                 	values.put(field.columnName, (byte[]) field.valueAccessor.getValue(storage));
                     break;
 

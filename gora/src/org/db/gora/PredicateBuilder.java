@@ -1,147 +1,89 @@
 package org.db.gora;
 
+import android.database.DatabaseUtils;
+
 import java.util.ArrayList;
 import java.util.Date;
 
 public class PredicateBuilder {
     final TableData mTable;
-    final WhereClause mWhereClause;
 
     PredicateBuilder(TableData table) {
         mTable = table;
-        mWhereClause = new WhereClause();
     }
 
     /**
-     * Builds Where clause string
-     *
-     * @return WHERE clause
+     * Class that holds OrderBy clause structure
      */
-    public String getWhereClause() {
-        if (mWhereClause == null) return null;
-        String where;
-        synchronized (sBuilder) {
-            sBuilder.setLength(0);
-            for (int i = 0; i < mWhereClause.mOrList.size(); ++i) {
-                int currentPosition = sBuilder.length();
+    public final class OrderByClause {
+        final StringBuilder mOrderBy;
 
-                WhereCriteria criteria = mWhereClause.mOrList.get(i);
-                while (criteria != null) {
-                    int criteriaPosition = sBuilder.length();
-
-                    switch (criteria.getOperation()) {
-                        case EQUAL:
-                            sBuilder.append(criteria.mFieldName);
-                            if (criteria.mValues[0] == null) {
-                                sBuilder.append(criteria.mExclude ? " IS NOT NULL " : " IS NULL ");
-                            } else {
-                                sBuilder.append(criteria.mExclude ? " <> " : " = ");
-                            }
-                            sBuilder.append(toSqlString(criteria.mValues[0]));
-                            break;
-
-                        case LIKE:
-                            sBuilder.append(criteria.mFieldName);
-                            sBuilder.append(criteria.mExclude ? " NOT LIKE " : " LIKE ");
-                            sBuilder.append(toSqlString(criteria.mValues[0]));
-                            break;
-
-                        case LESS:
-                            sBuilder.append(criteria.mFieldName);
-                            sBuilder.append(criteria.mExclude ? " >= " : " < ");
-                            sBuilder.append(toSqlString(criteria.mValues[0]));
-                            break;
-
-                        case GREATER:
-                            sBuilder.append(criteria.mFieldName);
-                            sBuilder.append(criteria.mExclude ? " <= " : " > ");
-                            sBuilder.append(toSqlString(criteria.mValues[0]));
-                            break;
-
-                        case RANGE:
-                            sBuilder.append(criteria.mFieldName);
-                            if (criteria.mExclude) {
-                                sBuilder.append(" NOT");
-                            }
-                            sBuilder.append(" BETWEEN ");
-                            sBuilder.append(toSqlString(criteria.mValues[0]));
-                            sBuilder.append(" AND ");
-                            sBuilder.append(toSqlString(criteria.mValues[1]));
-
-                            break;
-
-                        case SET:
-                            sBuilder.append(criteria.mFieldName);
-                            if (criteria.mExclude) {
-                                sBuilder.append(" NOT");
-                            }
-                            sBuilder.append(" IN (");
-                            for (int j = 0; j < criteria.mValues.length; ++j) {
-                                if (j > 0) {
-                                    sBuilder.append(", ");
-                                }
-                                sBuilder.append(toSqlString(criteria.mValues[j]));
-                            }
-                            sBuilder.append(")");
-                            break;
-                            
-                         default:
-                        	 break;
-                    }
-
-                    if (sBuilder.length() > criteriaPosition) {
-                        sBuilder.insert(criteriaPosition, '(');
-                        sBuilder.append(")");
-
-                        if (criteriaPosition > currentPosition) {
-                            sBuilder.insert(criteriaPosition, " AND ");
-                        }
-                    }
-
-                    criteria = criteria.nextCriteria;
-                }
-
-                if (currentPosition < sBuilder.length()) {
-                    sBuilder.insert(currentPosition, '(');
-                    sBuilder.append(')');
-                    if (currentPosition > 0) {
-                        sBuilder.insert(currentPosition, " OR ");
-                    }
-                }
-            }
-            where = sBuilder.toString();
+        OrderByClause() {
+            mOrderBy = new StringBuilder();
         }
-        return where;
+
+        public void clear() {
+            mOrderBy.setLength(0);
+        }
+
+        @Override
+        public String toString() {
+            return mOrderBy.toString();
+        }
+
+        public OrderByClause orderBy(String name, boolean asc) throws DataIntegrityException {
+            FieldData fd = mTable.getFieldByName(name);
+            if (fd == null) {
+                throw new DataIntegrityException(String.format("Table %s does not have column %s", mTable.tableName, name));
+            }
+            clear();
+
+            mOrderBy.append(String.format("%s %s", fd.columnName, asc ? "ASC" : "DESC"));
+
+            return this;
+        }
+
+        public OrderByClause thenBy(String name, boolean asc) throws DataIntegrityException {
+            FieldData fd = mTable.getFieldByName(name);
+            if (fd == null) {
+                throw new DataIntegrityException(String.format("Table %s does not have column %s", mTable.tableName, name));
+            }
+            if (mOrderBy.length() > 0) {
+                mOrderBy.append(", ");
+            }
+            mOrderBy.append(String.format("%s %s", fd.columnName, asc ? "ASC" : "DESC"));
+            return this;
+        }
+
+        public OrderByClause orderBy(String name) throws DataIntegrityException {
+            return orderBy(name, true);
+        }
+        public OrderByClause thenBy(String name) throws DataIntegrityException {
+            return thenBy(name, true);
+        }
+    }
+    /**
+     * Returns an instance of {@link OrderByClause}
+     *
+     * @return instance if {@link OrderByClause}
+     */
+    public OrderByClause orderBy() {
+        return new OrderByClause();
     }
 
+
+
+
+
     /**
-     * Returns the instance of {@link WhereClause}
+     * Returns an instance of {@link WhereClause}
      *
      * @return instance if {@link WhereClause}
      */
     public WhereClause where() {
-        return mWhereClause;
+        return new WhereClause();
     }
 
-    FieldData resolveFieldByName(String fieldName) {
-        if (fieldName == null) return null;
-        if (fieldName.length() == 0) return null;
-        if (mTable != null) {
-            for (int i = 0; i < mTable.fields.length; ++i) {
-                FieldData fd = mTable.fields[i];
-                if (fd.columnName.equalsIgnoreCase(fieldName)) {
-                    return fd;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Class that holds Where clause structure
-     *
-     * @author Sergey_Kolupaev@Intuit.com
-     */
     public final class WhereClause {
 
         /**
@@ -160,7 +102,7 @@ public class PredicateBuilder {
          * @return parsed criteria
          */
         public WhereCriteria eq(String field, Object value) {
-            FieldData fd = PredicateBuilder.this.resolveFieldByName(field);
+            FieldData fd = mTable.getFieldByName(field);
             if (fd != null) field = fd.columnName;
             return addCriteria(new WhereCriteria(this, field, CriteriaOperation.EQUAL, new Object[]{value}));
         }
@@ -173,7 +115,7 @@ public class PredicateBuilder {
          * @return parsed criteria
          */
         public WhereCriteria like(String field, String value) {
-            FieldData fd = PredicateBuilder.this.resolveFieldByName(field);
+            FieldData fd = mTable.getFieldByName(field);
             if (fd != null) field = fd.columnName;
             return addCriteria(new WhereCriteria(this, field, CriteriaOperation.LIKE, new Object[]{value}));
         }
@@ -186,7 +128,7 @@ public class PredicateBuilder {
          * @return parsed criteria
          */
         public WhereCriteria lt(String field, Object value) {
-            FieldData fd = PredicateBuilder.this.resolveFieldByName(field);
+            FieldData fd = mTable.getFieldByName(field);
             if (fd != null) field = fd.columnName;
             return addCriteria(new WhereCriteria(this, field, CriteriaOperation.LESS, new Object[]{value}));
         }
@@ -199,7 +141,7 @@ public class PredicateBuilder {
          * @return parsed criteria
          */
         public WhereCriteria gt(String field, Object value) {
-            FieldData fd = PredicateBuilder.this.resolveFieldByName(field);
+            FieldData fd = mTable.getFieldByName(field);
             if (fd != null) field = fd.columnName;
             return addCriteria(new WhereCriteria(this, field, CriteriaOperation.GREATER, new Object[]{value}));
         }
@@ -208,14 +150,14 @@ public class PredicateBuilder {
          * Creates range (SQL: BETWEEN AND) criteria
          *
          * @param field  criteria name. Can be either database column name or class field name.
-         * @param value1 criteria from value.
-         * @param value1 criteria to value.
+         * @param from criteria from value.
+         * @param to criteria to value.
          * @return parsed criteria
          */
-        public WhereCriteria range(String field, Object value1, Object value2) {
-            FieldData fd = PredicateBuilder.this.resolveFieldByName(field);
+        public WhereCriteria range(String field, Object from, Object to) {
+            FieldData fd = mTable.getFieldByName(field);
             if (fd != null) field = fd.columnName;
-            return addCriteria(new WhereCriteria(this, field, CriteriaOperation.RANGE, new Object[]{value1, value2}));
+            return addCriteria(new WhereCriteria(this, field, CriteriaOperation.RANGE, new Object[]{from, to}));
         }
 
         /**
@@ -226,7 +168,7 @@ public class PredicateBuilder {
          * @return parsed criteria
          */
         public WhereCriteria set(String field, Object[] values) {
-            FieldData fd = PredicateBuilder.this.resolveFieldByName(field);
+            FieldData fd = mTable.getFieldByName(field);
             if (fd != null) field = fd.columnName;
             return addCriteria(new WhereCriteria(this, field, CriteriaOperation.SET, values));
         }
@@ -240,6 +182,106 @@ public class PredicateBuilder {
             mLastCriteria = criteria;
             return mLastCriteria;
         }
+
+        /**
+         * Builds Where clause string
+         *
+         * @return WHERE clause
+         */
+        @Override
+        public String toString() {
+            StringBuilder builder = new StringBuilder();
+            builder.setLength(0);
+            for (int i = 0; i < mOrList.size(); ++i) {
+                int currentPosition = builder.length();
+
+                WhereCriteria criteria = mOrList.get(i);
+                while (criteria != null) {
+                    int criteriaPosition = builder.length();
+
+                    switch (criteria.getOperation()) {
+                        case EQUAL:
+                            builder.append(criteria.mFieldName);
+                            if (criteria.mValues[0] == null) {
+                                builder.append(criteria.mExclude ? " IS NOT NULL " : " IS NULL ");
+                            } else {
+                                builder.append(criteria.mExclude ? " <> " : " = ");
+                            }
+                            builder.append(toSqlString(criteria.mValues[0]));
+                            break;
+
+                        case LIKE:
+                            builder.append(criteria.mFieldName);
+                            builder.append(criteria.mExclude ? " NOT LIKE " : " LIKE ");
+                            builder.append(toSqlString(criteria.mValues[0]));
+                            break;
+
+                        case LESS:
+                            builder.append(criteria.mFieldName);
+                            builder.append(criteria.mExclude ? " >= " : " < ");
+                            builder.append(toSqlString(criteria.mValues[0]));
+                            break;
+
+                        case GREATER:
+                            builder.append(criteria.mFieldName);
+                            builder.append(criteria.mExclude ? " <= " : " > ");
+                            builder.append(toSqlString(criteria.mValues[0]));
+                            break;
+
+                        case RANGE:
+                            builder.append(criteria.mFieldName);
+                            if (criteria.mExclude) {
+                                builder.append(" NOT");
+                            }
+                            builder.append(" BETWEEN ");
+                            builder.append(toSqlString(criteria.mValues[0]));
+                            builder.append(" AND ");
+                            builder.append(toSqlString(criteria.mValues[1]));
+
+                            break;
+
+                        case SET:
+                            builder.append(criteria.mFieldName);
+                            if (criteria.mExclude) {
+                                builder.append(" NOT");
+                            }
+                            builder.append(" IN (");
+                            for (int j = 0; j < criteria.mValues.length; ++j) {
+                                if (j > 0) {
+                                    builder.append(", ");
+                                }
+                                builder.append(toSqlString(criteria.mValues[j]));
+                            }
+                            builder.append(")");
+                            break;
+
+                        default:
+                            break;
+                    }
+
+                    if (builder.length() > criteriaPosition) {
+                        builder.insert(criteriaPosition, '(');
+                        builder.append(")");
+
+                        if (criteriaPosition > currentPosition) {
+                            builder.insert(criteriaPosition, " AND ");
+                        }
+                    }
+
+                    criteria = criteria.nextCriteria;
+                }
+
+                if (currentPosition < builder.length()) {
+                    builder.insert(currentPosition, '(');
+                    builder.append(')');
+                    if (currentPosition > 0) {
+                        builder.insert(currentPosition, " OR ");
+                    }
+                }
+            }
+            return builder.toString();
+        }
+
 
         private WhereCriteria mLastCriteria;
         private ArrayList<WhereCriteria> mOrList = new ArrayList<WhereCriteria>();
@@ -360,49 +402,21 @@ public class PredicateBuilder {
 
     protected enum CriteriaOperation {NOP, EQUAL, LIKE, LESS, GREATER, RANGE, SET}
 
-
-    private final static StringBuilder sBuilder = new StringBuilder();
-
-    public static String toSqlString(Object value) {
+    static String toSqlString(Object value) {
         if (value == null) return "NULL";
+        Class<?> type = value.getClass();
 
-        if (value instanceof Long) return Long.toString((Long) value);
-
-        if (value instanceof String) {
-            String str = (String) value;
-            synchronized (sBuilder) {
-                int saved = sBuilder.length();
-                try {
-                    sBuilder.append(SqlEscape);
-                    for (int i = 0; i < str.length(); ++i) {
-                        char ch = str.charAt(i);
-                        sBuilder.append(ch);
-                        if (ch == SqlEscape) {
-                            sBuilder.append(SqlEscape);
-                        }
-
-                    }
-                    sBuilder.append(SqlEscape);
-                    str = sBuilder.substring(saved);
-                }
-                finally {
-                    sBuilder.setLength(saved);
-                }
-            }
-            return str;
-        }
-
-        if (value instanceof Integer) return Integer.toString((Integer) value);
-        if (value instanceof Short) return Short.toString((Short) value);
-        if (value instanceof Byte) return Byte.toString((Byte) value);
-        if (value instanceof Boolean) return (Boolean) value ? "1" : "0";
-        if (value instanceof Date) return Long.toString(((Date) value).getTime());
-        if (value instanceof Double) return Double.toString((Double) value);
-        if (value instanceof Float) return Float.toString((Float) value);
+        if (type == Long.TYPE) return Long.toString((Long) value);
+        if (type == Integer.TYPE) return Integer.toString((Integer) value);
+        if (type == Short.TYPE) return Short.toString((Short) value);
+        if (type == Byte.TYPE) return Byte.toString((Byte) value);
+        if (type == Boolean.TYPE) return (Boolean) value ? "1" : "0";
+        if (type == Double.TYPE) return Double.toString((Double) value);
+        if (type == Float.TYPE) return Float.toString((Float) value);
+        if (type == String.class) return DatabaseUtils.sqlEscapeString((String) value);
+        if (type == Date.class) return Long.toString(((Date) value).getTime());
 
         return value.toString();
     }
-
-    private static final char SqlEscape = '\'';
 }
 
