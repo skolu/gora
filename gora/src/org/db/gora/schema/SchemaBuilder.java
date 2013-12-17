@@ -24,12 +24,7 @@ import org.db.gora.IndexData;
 import org.db.gora.SQLiteSchema;
 import org.db.gora.TableData;
 import org.db.gora.TableLinkData;
-import org.db.gora.accessors.DoubleFieldValueAccessor;
-import org.db.gora.accessors.DoublePropertyValueAccessor;
-import org.db.gora.accessors.GenericFieldValueAccessor;
-import org.db.gora.accessors.GenericPropertyValueAccessor;
-import org.db.gora.accessors.IntFieldValueAccessor;
-import org.db.gora.accessors.IntPropertyValueAccessor;
+import org.db.gora.accessors.*;
 
 public class SchemaBuilder {
     public static void registerEntity(Class<?> clazz, SQLiteSchema schema) throws DataIntegrityException {
@@ -76,6 +71,7 @@ public class SchemaBuilder {
             if (clazz == Date.class) return FieldDataType.DATE;
             if (clazz == byte[].class) return FieldDataType.BYTE_ARRAY;
             if (clazz == BigDecimal.class) return FieldDataType.DOUBLE;
+            if (clazz.isEnum()) return FieldDataType.STRING;
         }
 
         throw new DataIntegrityException(String.format("Unsupported field type: %s", clazz.getName()));
@@ -111,6 +107,9 @@ public class SchemaBuilder {
                             break;
                         case DOUBLE:
                             fd.valueAccessor = new DoubleFieldValueAccessor(field);
+                            break;
+                        case STRING:
+                            fd.valueAccessor = new StringFieldValueAccessor(field);
                             break;
                         default:
                             fd.valueAccessor = new GenericFieldValueAccessor(field);
@@ -148,6 +147,9 @@ public class SchemaBuilder {
                             break;
                         case DOUBLE:
                             fd.valueAccessor = new DoublePropertyValueAccessor(getter, setter);
+                            break;
+                        case STRING:
+                            fd.valueAccessor = new StringPropertyValueAccessor(getter, setter);
                             break;
                         default:
                             fd.valueAccessor = new GenericPropertyValueAccessor(getter, setter);

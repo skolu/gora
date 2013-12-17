@@ -1,7 +1,8 @@
 package org.db.gora.schema;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.TreeSet;
 
 import org.db.gora.WhenLinkBroken;
@@ -12,18 +13,48 @@ public class Invoice extends Entity {
 	public ArrayList<InvoiceItem> items;
 	
 	@SqlChild(clazz=InvoicePayment.class, getter="getPayments")
-	private List<?> payments;
+	private Set<InvoicePayment> payments;
 	
-	public List<?> getPayments() {
+	public Set<InvoicePayment> getPayments() {
 		if (payments == null) {
-			payments = new ArrayList<Invoice.InvoicePayment>();
+			payments = new HashSet<InvoicePayment>();
 		}
 		return payments;
 	}
 
-	@SqlColumn(name="customer_id")
-	@SqlLinkedEntity(entity=Customer.class, whenBroken=WhenLinkBroken.UNLINK) 
-	public long customerId;
+    @SqlChild
+    public InvoiceCustomer customer;
+
+    @SqlTable(name="InvoiceCustomer")
+    public static class InvoiceCustomer extends Row {
+        public InvoiceCustomer() {
+        }
+
+        public InvoiceCustomer(Customer customer) {
+            this();
+            this.firstName = customer.firstName;
+            this.fullName = customer.name;
+            this.lastName = customer.lastName;
+            this.customerId = customer.getId();
+        }
+
+        @SqlColumn(name="invoice_id", fk=true)
+        public long invoiceId;
+
+        @SqlColumn(name="full_name")
+        public String fullName;
+
+        @SqlColumn(name="first_name")
+        public String firstName;
+
+        @SqlColumn(name="last_name")
+        public String lastName;
+
+        @SqlColumn(name="customer_id")
+        @SqlLinkedEntity(entity=Customer.class, whenBroken=WhenLinkBroken.UNLINK)
+        public long customerId;
+    }
+
 
 	@SqlTable(name="InvoiceItemAttr")
 	public static class InvoiceItemAttribute extends Row {
@@ -88,5 +119,5 @@ public class Invoice extends Entity {
 		
 		@SqlColumn(name="amount")
 		public double amount;
-	}
+    }
 }

@@ -16,6 +16,9 @@ public class Entity extends Row  implements SQLiteEvent {
 	
 	@SqlColumn(name="modified", index = true)
     public Date modified;
+
+    @SqlColumn(name="type")
+    public EntityType type;
 	
 	@SqlColumn(name="name", nullable=false, index=true)
 	public String name;
@@ -33,6 +36,9 @@ public class Entity extends Row  implements SQLiteEvent {
             created = new Date();
         }
         modified = new Date();
+        if (type == null) {
+            type = EntityType.Regular;
+        }
         return true;
     }
 

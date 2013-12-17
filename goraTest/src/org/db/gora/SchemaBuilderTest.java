@@ -27,11 +27,11 @@ public class SchemaBuilderTest extends TestCase {
 
         List<ChildTableData> childrenData = mSchema.getChildren(Invoice.class);
         Assert.assertNotNull(childrenData);
-        Assert.assertEquals(childrenData.size(), 2);
+        Assert.assertEquals(childrenData.size(), 3);
         for (ChildTableData child: childrenData) {
             if (child.childClass == Invoice.InvoiceItem.class) {
-            }
-            else if (child.childClass == Invoice.InvoicePayment.class) {
+            } else if (child.childClass == Invoice.InvoicePayment.class) {
+            } else if (child.childClass == Invoice.InvoiceCustomer.class) {
             } else {
                 Assert.assertTrue(false);
             }
@@ -51,6 +51,6 @@ public class SchemaBuilderTest extends TestCase {
         il = mSchema.getDetailLinks(Customer.class);
         Assert.assertNotNull(il);
         Assert.assertEquals(il.size(), 1);
-        Assert.assertEquals(il.get(0).detailClass, Invoice.class);
+        Assert.assertEquals(il.get(0).detailClass, Invoice.InvoiceCustomer.class);
     }
 }

@@ -413,6 +413,7 @@ public class PredicateBuilder {
         if (type == Float.TYPE) return Float.toString((Float) value);
         if (type == String.class) return DatabaseUtils.sqlEscapeString((String) value);
         if (type == Date.class) return Long.toString(((Date) value).getTime());
+        if (type.isEnum()) return DatabaseUtils.sqlEscapeString(((Enum) value).name());
 
         return value.toString();
     }

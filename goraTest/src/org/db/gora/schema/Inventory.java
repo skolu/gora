@@ -2,6 +2,9 @@ package org.db.gora.schema;
 
 @SqlTable(name="Inventory")
 public class Inventory extends Entity {
+    @SqlColumn(name="item_no")
+    public int itemNo;
+
 	@SqlColumn(name="desc")
 	public String desc;
 	
@@ -10,4 +13,7 @@ public class Inventory extends Entity {
 
 	@SqlColumn(name="taxable")
 	public boolean taxable;
+
+    @SqlColumn(name="image")
+    public byte[] image;
 }
