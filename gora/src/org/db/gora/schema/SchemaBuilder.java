@@ -21,6 +21,7 @@ import org.db.gora.DataIntegrityException;
 import org.db.gora.FieldData;
 import org.db.gora.FieldDataType;
 import org.db.gora.IndexData;
+import org.db.gora.SQLiteSchema;
 import org.db.gora.TableData;
 import org.db.gora.TableLinkData;
 import org.db.gora.accessors.DoubleFieldValueAccessor;
@@ -31,6 +32,35 @@ import org.db.gora.accessors.IntFieldValueAccessor;
 import org.db.gora.accessors.IntPropertyValueAccessor;
 
 public class SchemaBuilder {
+    public static void registerEntity(Class<?> clazz, SQLiteSchema schema) throws DataIntegrityException {
+        if (clazz == null || schema == null) return;
+
+        SchemaBuilder.ClassInfo classInfo = SchemaBuilder.extractClassInfo(clazz);
+        TableData entityTable = SchemaBuilder.createTableData(classInfo);
+        schema.registerTableData(entityTable);
+
+        List<TableLinkData> linkData = SchemaBuilder.extractLinkData(classInfo, entityTable);
+        for (TableLinkData link: linkData) {
+            schema.registerEntityLink(link);
+        }
+
+        registerChildren(classInfo, schema);
+    }
+
+    static void registerChildren(ClassInfo classInfo, SQLiteSchema schema) throws DataIntegrityException {
+        List<ChildInfo> children = SchemaBuilder.extractChildInfo(classInfo);
+        for (ChildInfo child: children) {
+            schema.registerTableData(child.childData);
+            schema.registerChildTable(child.childLink);
+
+            List<TableLinkData> linkData = SchemaBuilder.extractLinkData(child.childClassInfo, child.childData);
+            for (TableLinkData link: linkData) {
+                schema.registerEntityLink(link);
+            }
+
+            registerChildren(child.childClassInfo, schema);
+        }
+    }
 
 	static FieldDataType resolveSimpleDataType(Class<?> clazz) throws DataIntegrityException {
         if (clazz.isPrimitive()) {
@@ -51,7 +81,7 @@ public class SchemaBuilder {
         throw new DataIntegrityException(String.format("Unsupported field type: %s", clazz.getName()));
 	} 
 	
-	public static TableData createTableData(ClassInfo classInfo) throws DataIntegrityException {
+	static TableData createTableData(ClassInfo classInfo) throws DataIntegrityException {
 		SqlTable table = classInfo.clazz.getAnnotation(SqlTable.class);
 		if (table == null) {
 			throw new DataIntegrityException(
@@ -156,15 +186,15 @@ public class SchemaBuilder {
 		return tableData;
 	}
 	
-	public static class ChildInfo {
+	static class ChildInfo {
 		public ChildTableData childLink;
 		public TableData childData;
 		public ClassInfo childClassInfo;
 	}
 	
-	public static List<ChildInfo> extractChildInfo(ClassInfo classInfo) throws DataIntegrityException {
+	static List<ChildInfo> extractChildInfo(ClassInfo classInfo) throws DataIntegrityException {
 		List<ChildInfo> result = new ArrayList<ChildInfo>();
-		
+
 		for (Field field: classInfo.fields) {
 			SqlChild child = field.getAnnotation(SqlChild.class);
 			if (child != null) {
@@ -253,17 +283,17 @@ public class SchemaBuilder {
 				result.add(childInfo);
 			}
 		}
-		
+
 		return result;
 	}
 	
-	public static class ClassInfo {
+	static class ClassInfo {
 		Class<?> clazz;
 		ArrayList<Field> fields = new ArrayList<Field>();
 		Map<String, Method> methods = new TreeMap<String, Method>();
 	} 
 
-	public static ClassInfo extractClassInfo(Class<?> clazz) {
+	static ClassInfo extractClassInfo(Class<?> clazz) {
 		ClassInfo classInfo = new ClassInfo();
 		classInfo.clazz = clazz;
 		
@@ -306,7 +336,7 @@ public class SchemaBuilder {
 		return classInfo;
 	} 
 		
-	public static List<TableLinkData> extractLinkData(ClassInfo classInfo, TableData tableData) 
+	static List<TableLinkData> extractLinkData(ClassInfo classInfo, TableData tableData)
 			throws DataIntegrityException 
 	{
 		if (classInfo.clazz != tableData.tableClass) {

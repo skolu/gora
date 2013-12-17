@@ -200,7 +200,7 @@ public abstract class SQLiteSchema {
 							clazz.getName())); 
 		}
 		TableQueryBuilder.LinkedQueryBuilder result = tableBuilder.linkedBuilders.get(clazz);
-		if (result != null) {
+		if (result == null) {
 			Class<?> current = clazz;
 			ArrayList<TableData> pathToId = new ArrayList<TableData>();
 			while (current != null) {

@@ -99,34 +99,6 @@ final class TableQueryBuilder {
 			return fromWhereByLinkedIdClause;
 		}
 
-        private String selectDistinctParentQuery = null;
-        public String getSelectDistinctParentQuery() {
-            if (selectDistinctParentQuery == null) {
-                StringBuilder builder = new StringBuilder();
-
-                builder.append(String.format(" FROM %s AS t%d", tableData.tableName, tableData.tableNo));
-
-                if (pathToId.length > 0) {
-                    TableData lastTable = tableData;
-                    for (int i = 0; i < (pathToId.length - 1); i++) {
-                        TableData thisTable = pathToId[i];
-                        builder.append(String.format(" INNER JOIN %s AS t%d ON t%d.%s = t%d.%s",
-                                thisTable.tableName, thisTable.tableNo,
-                                thisTable.tableNo, thisTable.primaryKey.columnName,
-                                lastTable.tableNo, lastTable.foreignKey.columnName
-                        ));
-                        lastTable = thisTable;
-                    }
-                    builder.append(String.format("SELECT DISTINCT t%d.%s", lastTable.tableNo, lastTable.foreignKey.columnName));
-                } else {
-                    builder.insert(0, String.format("SELECT t%d.%s", tableData.tableNo, tableData.primaryKey.columnName));
-                }
-
-                selectDistinctParentQuery = builder.toString();
-            }
-            return selectDistinctParentQuery;
-        }
-
         private String selectByLinkedIdQuery = null;
 		public String getSelectByIdQuery() {
 			if (selectByLinkedIdQuery == null) {

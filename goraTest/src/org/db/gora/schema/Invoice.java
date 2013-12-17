@@ -37,9 +37,26 @@ public class Invoice extends Entity {
 	
 	@SqlTable(name="InvoiceItem")
 	public static class InvoiceItem extends Row {
+        public InvoiceItem() {
+        }
+
+        public InvoiceItem(Inventory item) {
+            this();
+            if (item != null) {
+                this.name = item.name;
+                this.desc = item.desc;
+                this.price = item.price;
+                this.taxable = item.taxable;
+                this.invn_id = item.getId();
+            }
+        }
+
 		@SqlColumn(name="invoice_id", fk=true)
 		public long invoiceId;
 		
+        @SqlColumn(name="name")
+      		public String name;
+
 		@SqlColumn(name="desc")
 		public String desc;
 		

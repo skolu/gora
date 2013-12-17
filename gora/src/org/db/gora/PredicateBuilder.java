@@ -26,8 +26,7 @@ public class PredicateBuilder {
             mOrderBy.setLength(0);
         }
 
-        @Override
-        public String toString() {
+        public String getOrderByClause() {
             return mOrderBy.toString();
         }
 
@@ -188,8 +187,7 @@ public class PredicateBuilder {
          *
          * @return WHERE clause
          */
-        @Override
-        public String toString() {
+        public String getWhereClause() {
             StringBuilder builder = new StringBuilder();
             builder.setLength(0);
             for (int i = 0; i < mOrList.size(); ++i) {

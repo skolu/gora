@@ -57,7 +57,7 @@ public class SQLiteManager implements DataManager {
             for (TableLinkData tld: links) {
                 List<ChildTableData> children = mSchema.getChildren(detailClazz);
                 for (ChildTableData ctd: children) {
-                    if (ctd.childClass == detailClazz) {
+                    if (ctd.childClass == tld.detailClass) {
                         linkData = tld;
                         break;
                     }
@@ -72,8 +72,11 @@ public class SQLiteManager implements DataManager {
         if (linkData.detailClass == detailClazz) {
             query = String.format("SELECT %s FROM %s WHERE %s=? ", detailTable.primaryKey.columnName, detailTable.tableName, linkData.detailField.columnName);
         } else {
-            TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(linkData.detailClass, detailClazz);
-            query = String.format("%s WHERE t%d.%s=?", builder.getSelectDistinctParentQuery(), detailTable.tableNo, linkData.detailField.columnName);
+            TableData childTable = mSchema.getTableData(linkData.detailClass);
+            if (childTable == null) {
+                throw new DataIntegrityException(String.format("SQLiteManager: Class %s is not registered", linkData.detailClass.getName()));
+            }
+            query = String.format("SELECT DISTINCT %s FROM %s WHERE %s=? ", childTable.foreignKey.columnName, childTable.tableName, linkData.detailField.columnName);
         }
         Cursor cursor = mDb.rawQuery(query, new String[] {Long.toString(masterId)});
         if (cursor != null) {
@@ -425,45 +428,76 @@ public class SQLiteManager implements DataManager {
 	 * Deletes an entity
 	 */
 	@Override
-	public <T> void delete(Class<T> clazz, long id) throws DataAccessException {
-		if (clazz == null) {
-			throw new DataAccessException("SQLiteManager: Read: class is null");
-		}
-		if (mDb == null) {
-			throw new DataAccessException("SQLiteManager: Read: Sqlite database is null");
-		}
-		if (!mDb.isOpen()) {
-			throw new DataAccessException("SQLiteManager: Read: Sqlite database is not open");
-		}
-		if (mDb.isReadOnly()) {
-			throw new DataAccessException("SQLiteManager: Read: Sqlite database is read-only");
-		}
+    public <T> void delete(Class<T> clazz, long id) throws DataAccessException {
+        if (clazz == null) {
+            throw new DataAccessException("SQLiteManager: Read: class is null");
+        }
+        if (mDb == null) {
+            throw new DataAccessException("SQLiteManager: Read: Sqlite database is null");
+        }
+        if (!mDb.isOpen()) {
+            throw new DataAccessException("SQLiteManager: Read: Sqlite database is not open");
+        }
+        if (mDb.isReadOnly()) {
+            throw new DataAccessException("SQLiteManager: Read: Sqlite database is read-only");
+        }
 
-		mDb.beginTransactionNonExclusive();
-		try {
-			deleteChildren(id, clazz, clazz);
-			mDb.setTransactionSuccessful();
-		} catch (Exception e) {
-			throw new DataAccessException("SQLiteManager: Delete: Internal exception", e);
-		} finally {
-			mDb.endTransaction();
-		}
-	}
+        mDb.beginTransactionNonExclusive();
+        try {
+            deleteChildren(id, clazz, clazz);
 
-	private void deleteChildren(long id, Class<?> idClazz, Class<?> toDelete) throws DataIntegrityException {
-		TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(toDelete, idClazz);
-		if (builder == null) {
-            throw new DataIntegrityException(
-                    String.format("SQLiteManager: deleteChildren: classes %s and %s are unrelated.", idClazz.getName(), toDelete.getName()));
-		}
-		List<ChildTableData> children = mSchema.getChildren(toDelete);
-		if (children != null) {
-			for (ChildTableData child: children) {
-				deleteChildren(id, idClazz, child.childClass);
-			}
-		}
-		mDb.delete(builder.getTableData().tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
-	}
+            List<TableLinkData> links = mSchema.getDetailLinks(clazz);
+            if (links != null) {
+                for (TableLinkData link: links) {
+                    if (link.whenBroken == WhenLinkBroken.UNLINK) {
+                        TableData linkData = mSchema.getTableData(link.detailClass);
+                        if (linkData != null) {
+                            ContentValues values = mValues.poll();
+                            if (values == null) {
+                                values = new ContentValues();
+                            } else {
+                                values.clear();
+                            }
+                            values.put(link.detailField.columnName, 0l);
+                            mDb.update(linkData.tableName, values, link.detailField.columnName + " = ?", new String[] {Long.toString(id)});
+                            mValues.add(values);
+                        }
+                    }
+                }
+            }
+
+            mDb.setTransactionSuccessful();
+        } catch (Exception e) {
+            throw new DataAccessException("SQLiteManager: Delete: Internal exception", e);
+        } finally {
+            mDb.endTransaction();
+        }
+    }
+
+    private void deleteChildren(long id, Class<?> idClazz, Class<?> toDelete) throws DataIntegrityException {
+        List<ChildTableData> children = mSchema.getChildren(toDelete);
+        if (children != null) {
+            for (ChildTableData child: children) {
+                deleteChildren(id, idClazz, child.childClass);
+            }
+        }
+
+        if (idClazz != toDelete) {
+            TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(toDelete, idClazz);
+            if (builder == null) {
+                throw new DataIntegrityException(
+                        String.format("SQLiteManager: deleteChildren: classes %s and %s are unrelated.", idClazz.getName(), toDelete.getName()));
+            }
+            mDb.delete(builder.getTableData().tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
+        } else {
+            TableQueryBuilder builder = mSchema.getQueryBuilder(idClazz);
+            if (builder == null) {
+                throw new DataIntegrityException(
+                        String.format("SQLiteManager: deleteChildren: classes %s is not registered.", idClazz.getName()));
+            }
+            mDb.delete(builder.tableData.tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
+        }
+    }
 
     /**
      * Reads an entity by id
@@ -630,7 +664,9 @@ public class SQLiteManager implements DataManager {
 			ContentValues values = mValues.poll();
 			if (values == null) {
 				values = new ContentValues();
-			}
+			} else {
+                values.clear();
+            }
 			populateValues(scope, tableData.fields, values);
 			if (tableData.foreignKey != null) {
                 Long aLong = values.getAsLong(tableData.foreignKey.columnName);
@@ -646,6 +682,9 @@ public class SQLiteManager implements DataManager {
 			isInsert = id == 0;
 			if (isInsert) { 
 				id = mDb.insert(tableData.tableName, null, values);
+                if (id == -1) {
+                    throw new DataAccessException(String.format("SQLiteManager: Insert: constraint violation on table %s", tableData.tableName));
+                }
 				tableData.primaryKey.valueAccessor.setValue(id, scope);
 			} else {
 				mDb.update(tableData.tableName, values, builder.getUpdateWhereClause(), new String[] {Long.toString(id)});

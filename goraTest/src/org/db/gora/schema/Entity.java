@@ -26,6 +26,9 @@ public class Entity extends Row  implements SQLiteEvent {
 
     @Override
     public boolean onWrite() {
+        if (name == null) {
+            name = "Empty";
+        }
         if (getId() == 0) {
             created = new Date();
         }

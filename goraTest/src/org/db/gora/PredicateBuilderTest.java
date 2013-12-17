@@ -14,12 +14,13 @@ public class PredicateBuilderTest extends TestCase {
     }
 
     public void testInvoicePredicateBuilder() {
+
         PredicateBuilder pb = new PredicateBuilder(schema.getTableData(Invoice.class));
         Assert.assertNotNull(pb);
 
         PredicateBuilder.WhereClause wc = pb.where();
         wc.eq("name", "I001").exclude();
-        String actual = wc.toString();
+        String actual = wc.getWhereClause();
         actual = actual.replaceAll("^\\(+", "");
         actual = actual.replaceAll("\\)+$", "");
         Assert.assertEquals(actual, "name <> 'I001'");
@@ -27,7 +28,7 @@ public class PredicateBuilderTest extends TestCase {
         wc.clear();
 
         wc.range("modified", 123456789, 987654321);
-        actual = wc.toString();
+        actual = wc.getWhereClause();
         actual = actual.replaceAll("^\\(+", "");
         actual = actual.replaceAll("\\)+$", "");
         Assert.assertEquals(actual, "modified BETWEEN 123456789 AND 987654321");
