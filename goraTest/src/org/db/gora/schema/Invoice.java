@@ -12,10 +12,10 @@ public class Invoice extends Entity {
 	@SqlChild
 	public ArrayList<InvoiceItem> items;
 	
-	@SqlChild(clazz=InvoicePayment.class, getter="getPayments")
-	private Set<InvoicePayment> payments;
+	@SqlChild(classes={InvoiceCashPayment.class, InvoiceCreditPayment.class}, getter="getPayments")
+	private Set<? extends InvoicePayment> payments;
 	
-	public Set<InvoicePayment> getPayments() {
+	public Set<? extends InvoicePayment> getPayments() {
 		if (payments == null) {
 			payments = new HashSet<InvoicePayment>();
 		}
@@ -112,7 +112,6 @@ public class Invoice extends Entity {
 		}
 	}
 
-	@SqlTable(name="InvoicePayment")
 	public static class InvoicePayment extends Row {
 		@SqlColumn(name="invoice_id", fk=true)
 		public long invoiceId;
@@ -120,4 +119,20 @@ public class Invoice extends Entity {
 		@SqlColumn(name="amount")
 		public double amount;
     }
+
+    @SqlTable(name="InvoiceCashPayment")
+    public static class InvoiceCashPayment extends InvoicePayment {
+        @SqlColumn(name="cash_taken")
+        public double cashTaken;
+    }
+
+    @SqlTable(name="InvoiceCreditPayment")
+    public static class InvoiceCreditPayment extends InvoicePayment {
+        @SqlColumn(name="auth_id")
+        public String authId;
+
+        @SqlColumn(name="last_four")
+        public String lastFourDigits;
+    }
+
 }

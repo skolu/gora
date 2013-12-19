@@ -3,9 +3,8 @@ package org.db.gora;
 public class ChildTableData {
 	public ChildDataType linkType;
 	
-	public Class<?> parentClass;
+	public Class<?> parent;
 	public ChildValueAccess valueAccessor;
-	
-	public Class<?> childClass;
-	public FieldData foreignKeyField;
+
+    public Class<?>[] children;
 }

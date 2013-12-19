@@ -8,6 +8,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
 public @interface SqlChild {
-    Class<?> clazz() default Void.class;
+    Class<?>[] classes() default {};
     String getter() default "";
 }

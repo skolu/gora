@@ -6,13 +6,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 
 import org.db.gora.ChildDataType;
 import org.db.gora.ChildTableData;
@@ -30,30 +24,38 @@ public class SchemaBuilder {
     public static void registerEntity(Class<?> clazz, SQLiteSchema schema) throws DataIntegrityException {
         if (clazz == null || schema == null) return;
 
-        SchemaBuilder.ClassInfo classInfo = SchemaBuilder.extractClassInfo(clazz);
-        TableData entityTable = SchemaBuilder.createTableData(classInfo);
-        schema.registerTableData(entityTable);
+        List<TableData> tables = new ArrayList<TableData>();
+        List<ChildTableData> children = new ArrayList<ChildTableData>();
+        List<TableLinkData> links = new ArrayList<TableLinkData>();
 
-        List<TableLinkData> linkData = SchemaBuilder.extractLinkData(classInfo, entityTable);
-        for (TableLinkData link: linkData) {
-            schema.registerEntityLink(link);
+        extractSchema(clazz, tables, children, links);
+
+        for (TableData t: tables) {
+            schema.registerTableData(t);
         }
-
-        registerChildren(classInfo, schema);
+        for (ChildTableData c: children) {
+            schema.registerChildTable(c);
+        }
+        for (TableLinkData l: links) {
+            schema.registerEntityLink(l);
+        }
     }
 
-    static void registerChildren(ClassInfo classInfo, SQLiteSchema schema) throws DataIntegrityException {
-        List<ChildInfo> children = SchemaBuilder.extractChildInfo(classInfo);
-        for (ChildInfo child: children) {
-            schema.registerTableData(child.childData);
-            schema.registerChildTable(child.childLink);
+    static void extractSchema(Class<?> clazz, List<TableData> tables, List<ChildTableData> children, List<TableLinkData> links)
+            throws DataIntegrityException {
 
-            List<TableLinkData> linkData = SchemaBuilder.extractLinkData(child.childClassInfo, child.childData);
-            for (TableLinkData link: linkData) {
-                schema.registerEntityLink(link);
+        SchemaBuilder.ClassInfo classInfo = extractClassInfo(clazz);
+        TableData t = createTableData(classInfo);
+        tables.add(t);
+        List<ChildTableData> c = createChildTableData(classInfo);
+        children.addAll(c);
+        List<TableLinkData> l = createTableLinkData(classInfo, t);
+        links.addAll(l);
+
+        for (ChildTableData child: c) {
+            for (Class<?> childClazz: child.children) {
+                extractSchema(childClazz, tables, children, links);
             }
-
-            registerChildren(child.childClassInfo, schema);
         }
     }
 
@@ -188,20 +190,15 @@ public class SchemaBuilder {
 		return tableData;
 	}
 	
-	static class ChildInfo {
-		public ChildTableData childLink;
-		public TableData childData;
-		public ClassInfo childClassInfo;
-	}
-	
-	static List<ChildInfo> extractChildInfo(ClassInfo classInfo) throws DataIntegrityException {
-		List<ChildInfo> result = new ArrayList<ChildInfo>();
+	static List<ChildTableData> createChildTableData(ClassInfo classInfo) throws DataIntegrityException {
+        List<ChildTableData> result = new ArrayList<ChildTableData>();
 
 		for (Field field: classInfo.fields) {
 			SqlChild child = field.getAnnotation(SqlChild.class);
 			if (child != null) {
+
 				ChildTableData tld = new ChildTableData();
-				tld.parentClass = classInfo.clazz;
+				tld.parent = classInfo.clazz;
 				
 				Class<?> clazz = field.getType();
 				if (List.class.isAssignableFrom(clazz)) {
@@ -213,19 +210,23 @@ public class SchemaBuilder {
 					tld.linkType = ChildDataType.SINGLE;
 				}
 
-				tld.childClass = child.clazz();
-				if (tld.childClass == Void.class) {
+                Class<?>[] childClasses = child.classes();
+                if (childClasses == null) {
+                    childClasses = new Class<?>[0];
+                }
+
+				if (childClasses.length == 0) {
 					if (tld.linkType == ChildDataType.LIST || tld.linkType == ChildDataType.SET) {
 						ParameterizedType tt = (ParameterizedType) field.getGenericType();
 						Type t = tt.getActualTypeArguments()[0];
 						if (Class.class.isAssignableFrom(t.getClass())) {
-							tld.childClass = (Class<?>) t;
+                            childClasses = new Class<?>[] { (Class<?>) t };
 						}
 					} else {
-						tld.childClass = clazz;
+                        childClasses = new Class<?>[] { clazz };
 					}
 				}
-				if (tld.childClass == Void.class) {
+				if (childClasses.length == 0) {
 			        throw new DataIntegrityException(
 			        		String.format("Cannot resolve child storage class: %s.%s",
 			        				field.getDeclaringClass().getName(), field.getName()));
@@ -268,25 +269,12 @@ public class SchemaBuilder {
 						break;
 					}
 				}
-				
-				ClassInfo childClassInfo = extractClassInfo(tld.childClass);
-				TableData childData = createTableData(childClassInfo);
-				if (childData.foreignKey == null) {
-			        throw new DataIntegrityException(
-			        		String.format("Foreign key field is not defined in class: %s",
-			        				tld.childClass.getName()));
-				} 
-				tld.foreignKeyField = childData.foreignKey;
-				ChildInfo childInfo = new ChildInfo();
-				childInfo.childLink = tld;
-				childInfo.childData = childData;
-				childInfo.childClassInfo = childClassInfo;
-				
-				result.add(childInfo);
+
+                tld.children = childClasses;
+                result.add(tld);
 			}
 		}
-
-		return result;
+        return result;
 	}
 	
 	static class ClassInfo {
@@ -338,7 +326,7 @@ public class SchemaBuilder {
 		return classInfo;
 	} 
 		
-	static List<TableLinkData> extractLinkData(ClassInfo classInfo, TableData tableData)
+	static List<TableLinkData> createTableLinkData(ClassInfo classInfo, TableData tableData)
 			throws DataIntegrityException 
 	{
 		if (classInfo.clazz != tableData.tableClass) {

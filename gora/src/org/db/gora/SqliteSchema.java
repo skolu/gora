@@ -141,41 +141,43 @@ public abstract class SQLiteSchema {
 	
 	public void registerChildTable(ChildTableData linkData) throws DataIntegrityException {
 		if (linkData == null) return;
-		if (linkData.parentClass == null) {
+		if (linkData.parent == null) {
 			throw new DataIntegrityException("Child link: Parent class is null"); 
 		}
-		if (linkData.childClass == null) {
-			throw new DataIntegrityException("Child link: Child class is null"); 
+		if (linkData.children == null) {
+			throw new DataIntegrityException("Child link: Child list is null");
 		}
+        if (linkData.children.length == 0) {
+            throw new DataIntegrityException("Child link: Child list is empty");
+        }
 		if (linkData.valueAccessor == null) {
 			throw new DataIntegrityException("Child link: Parent value accessor is null"); 
 		}
-		if (linkData.foreignKeyField == null) {
-			throw new DataIntegrityException("Child link: Foreign key field is null"); 
+		if (!tableMap.containsKey(linkData.parent)) {
+			throw new DataIntegrityException(String.format("Child link: Table class %s is not registered", linkData.parent.getName()));
 		}
-		if (!tableMap.containsKey(linkData.parentClass)) {
-			throw new DataIntegrityException(String.format("Child link: Table class %s is not registered", linkData.parentClass.getName())); 
-		}
-		if (!tableMap.containsKey(linkData.childClass)) {
-			throw new DataIntegrityException(String.format("Child link: Table class %s is not registered", linkData.childClass.getName())); 
-		}
-		if (!linkData.valueAccessor.getStorageClass().isAssignableFrom(linkData.parentClass)) {
+        for (Class<?> cc: linkData.children) {
+            if (!tableMap.containsKey(cc)) {
+                throw new DataIntegrityException(String.format("Child link: Table class %s is not registered", cc.getName()));
+            }
+            if (parentMap.containsKey(cc)) {
+                throw new DataIntegrityException("Child link: Child link exists");
+            }
+        }
+		if (!linkData.valueAccessor.getStorageClass().isAssignableFrom(linkData.parent)) {
 			throw new DataIntegrityException("Child link: Parent value accessor: invalid storage class"); 
 		}
-		if (!linkData.foreignKeyField.valueAccessor.getStorageClass().isAssignableFrom(linkData.childClass)) {
-			throw new DataIntegrityException("Child link: Foreign key value accessor: invalid storage class"); 
-		}
-		if (parentMap.containsKey(linkData.childClass)) {
-			throw new DataIntegrityException("Child link: Child link exists"); 
-		}
-		
-		List<ChildTableData> list = childMap.get(linkData.parentClass);
+
+		List<ChildTableData> list = childMap.get(linkData.parent);
 		if (list == null) {
 			list = new ArrayList<ChildTableData>();
-			childMap.put(linkData.parentClass, list);
+			childMap.put(linkData.parent, list);
 		}
 		list.add(linkData);
-		parentMap.put(linkData.childClass, linkData.parentClass);
+
+        for (Class<?> cc: linkData.children) {
+		    parentMap.put(cc, linkData.parent);
+        }
 	}
 	
 	final Map<Class<?>, TableQueryBuilder> queryBuilders = new HashMap<Class<?>, TableQueryBuilder>();
