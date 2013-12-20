@@ -43,7 +43,7 @@ public class SQLiteManager implements DataManager {
         }
     }
 
-    public <M, D> long[] queryLinks(Class<D> detailClazz, Class<M> masterClazz, long masterId) throws DataAccessException, DataIntegrityException {
+    public long[] queryLinks(Class<?> detailClazz, Class<?> masterClazz, long masterId) throws DataAccessException, DataIntegrityException {
         if (detailClazz == null) {
             throw new DataIntegrityException("SQLiteManager: gueryLinks: Null detail class");
         }

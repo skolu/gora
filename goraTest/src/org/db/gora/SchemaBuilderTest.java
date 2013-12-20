@@ -7,6 +7,7 @@ import org.db.gora.schema.Inventory;
 import org.db.gora.schema.Invoice;
 import org.db.gora.schema.InvoiceCashPayment;
 import org.db.gora.schema.InvoiceCreditPayment;
+import org.db.gora.schema.InvoiceCustomer;
 import org.db.gora.schema.SchemaUtils;
 
 import java.util.List;
@@ -32,7 +33,7 @@ public class SchemaBuilderTest extends TestCase {
         Assert.assertEquals(childrenData.size(), 3);
         for (ChildTableData child: childrenData) {
             if (child.children.length == 1) {
-                if (child.children[0] == Invoice.InvoiceItem.class || child.children[0] == Invoice.InvoiceCustomer.class) {
+                if (child.children[0] == Invoice.InvoiceItem.class || child.children[0] == InvoiceCustomer.class) {
                 } else {
                     Assert.assertTrue(false);
                 }
@@ -57,8 +58,6 @@ public class SchemaBuilderTest extends TestCase {
             }
         }
 
-
-
         TableData invnData = mSchema.getTableData(Inventory.class);
         Assert.assertNotNull(invnData);
 
@@ -73,6 +72,6 @@ public class SchemaBuilderTest extends TestCase {
         il = mSchema.getDetailLinks(Customer.class);
         Assert.assertNotNull(il);
         Assert.assertEquals(il.size(), 1);
-        Assert.assertEquals(il.get(0).detailClass, Invoice.InvoiceCustomer.class);
+        Assert.assertEquals(il.get(0).detailClass, Invoice.class);
     }
 }

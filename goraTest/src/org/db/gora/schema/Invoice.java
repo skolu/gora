@@ -15,7 +15,7 @@ public class Invoice extends Entity {
     @SqlChild(classes={InvoiceCashPayment.class, InvoiceCreditPayment.class}, getter="getPayments")
     private Set<InvoicePayment> payments;
 
-    public Set<? super InvoicePayment> getPayments() {
+    public Set<InvoicePayment> getPayments() {
         if (payments == null) {
             payments = new HashSet<InvoicePayment>();
         }
@@ -25,36 +25,9 @@ public class Invoice extends Entity {
     @SqlChild
     public InvoiceCustomer customer;
 
-    @SqlTable(name="InvoiceCustomer")
-    public static class InvoiceCustomer extends Row {
-        public InvoiceCustomer() {
-        }
-
-        public InvoiceCustomer(Customer customer) {
-            this();
-            this.firstName = customer.firstName;
-            this.fullName = customer.name;
-            this.lastName = customer.lastName;
-            this.customerId = customer.getId();
-        }
-
-        @SqlColumn(name="invoice_id", fk=true)
-        public long invoiceId;
-
-        @SqlColumn(name="full_name")
-        public String fullName;
-
-        @SqlColumn(name="first_name")
-        public String firstName;
-
-        @SqlColumn(name="last_name")
-        public String lastName;
-
-        @SqlColumn(name="customer_id")
-        @SqlLinkedEntity(entity=Customer.class, whenBroken=WhenLinkBroken.UNLINK)
-        public long customerId;
-    }
-
+    @SqlColumn(name="customer_id")
+    @SqlLinkedEntity(entity=Customer.class, whenBroken=WhenLinkBroken.UNLINK)
+    public long customerId;
 
     @SqlTable(name="InvoiceItemAttr")
     public static class InvoiceItemAttribute extends Row {
@@ -76,6 +49,7 @@ public class Invoice extends Entity {
         public InvoiceItem(Inventory item) {
             this();
             if (item != null) {
+                this.itemNo = item.itemNo;
                 this.name = item.name;
                 this.desc = item.desc;
                 this.price = item.price;
@@ -87,8 +61,24 @@ public class Invoice extends Entity {
         @SqlColumn(name="invoice_id", fk=true)
         public long invoiceId;
 
-        @SqlColumn(name="name")
-        public String name;
+        @SqlColumn(name="item_no", getter="getItemNo", setter="setItemNo")
+        int itemNo;
+        public int getItemNo() {
+            return itemNo;
+        }
+        public void setItemNo(int itemNo) {
+            this.itemNo = itemNo;
+        }
+
+
+        @SqlColumn(name="name", getter="getName", setter="setName")
+        String name;
+        public String getName() {
+            return name;
+        }
+        public void setName(String name) {
+            this.name = name;
+        }
 
         @SqlColumn(name="desc")
         public String desc;
@@ -99,8 +89,14 @@ public class Invoice extends Entity {
         @SqlColumn(name="taxable")
         public boolean taxable;
 
-        @SqlColumn(name="qty")
-        public double qty;
+        @SqlColumn(name="qty", getter="getQty", setter="setQty")
+        float qty;
+        public float getQty() {
+            return qty;
+        }
+        public void setQty(float qty) {
+            this.qty = qty;
+        }
 
         @SqlColumn(name="invn_id")
         @SqlLinkedEntity(entity=Inventory.class, whenBroken=WhenLinkBroken.UNLINK)

@@ -7,6 +7,7 @@ import org.db.gora.schema.*;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Set;
 
 public class DatabaseHelperTest extends AndroidTestCase {
     SQLiteSchema schema;
@@ -94,6 +95,13 @@ public class DatabaseHelperTest extends AndroidTestCase {
         customer.firstName = "Sergey";
         customer.lastName = "Kolupaev";
 
+        Address addr = new Address();
+        addr.address1 = "100 Main st.";
+        addr.city = "SimCity";
+        addr.state = "AZ";
+        addr.zipCode = "55555";
+        customer.getAddresses().add(addr);
+
         sm.write(customer);
 
         Inventory invn1 = new Inventory();
@@ -117,19 +125,28 @@ public class DatabaseHelperTest extends AndroidTestCase {
         sm.write(invn2);
 
         Invoice invoice = new Invoice();
-        invoice.customer = new Invoice.InvoiceCustomer(customer);
+        invoice.customer = new InvoiceCustomer(customer);
+        invoice.customerId = customer.getId();
         invoice.items = new ArrayList<Invoice.InvoiceItem>();
         Invoice.InvoiceItem invc_item = new Invoice.InvoiceItem(invn1);
-        invc_item.qty = 1.;
+        invc_item.setQty(1.f);
         invoice.items.add(invc_item);
 
         invc_item = new Invoice.InvoiceItem(invn2);
-        invc_item.qty = 2.;
+        invc_item.setQty(2.f);
         invoice.items.add(invc_item);
 
-        InvoicePayment payment = new InvoiceCashPayment();
-        payment.amount = 100;
-        invoice.getPayments().add(payment);
+        InvoiceCashPayment cash = new InvoiceCashPayment();
+        cash.amount = 10.;
+        cash.cashTaken = 20.;
+        invoice.getPayments().add(cash);
+
+        InvoiceCreditPayment credit = new InvoiceCreditPayment();
+        credit.authId = "AUTH1234567890";
+        credit.lastFourDigits = "4321";
+        credit.nameOnCard = "TEST";
+        credit.amount = 20;
+        invoice.getPayments().add(credit);
 
         sm.write(invoice);
         Assert.assertEquals(invoice.getId(), 1L);
@@ -139,7 +156,37 @@ public class DatabaseHelperTest extends AndroidTestCase {
         Assert.assertNotNull(invoice.customer);
         Assert.assertNotNull(invoice.items);
         Assert.assertEquals(invoice.items.size(), 2);
+        for (Invoice.InvoiceItem item: invoice.items) {
+            if (item.getName().equals("Item 1")) {
+                Assert.assertTrue(item.getQty() > 0.99f);
+                Assert.assertTrue(item.getQty() < 1.01f);
+                Assert.assertTrue(item.taxable);
+            }
+            else if (item.getName().equals("Item 2")) {
+                Assert.assertTrue(item.getQty() > 1.99f);
+                Assert.assertTrue(item.getQty() < 2.01f);
+                Assert.assertFalse(item.taxable);
+            } else {
+                Assert.assertTrue(false);
+            }
+        }
         Assert.assertFalse(invoice.items.get(0).getId() == invoice.items.get(1).getId());
+
+        Set<InvoicePayment> payments = invoice.getPayments();
+        Assert.assertNotNull(payments);
+        Assert.assertEquals(payments.size(), 2);
+        for (InvoicePayment payment: payments) {
+            if (payment.getPaymentType() == PaymentType.Cash) {
+                Assert.assertTrue(payment.amount > 9.99);
+                Assert.assertTrue(payment.amount < 10.01);
+            }
+            else if (payment.getPaymentType() == PaymentType.Credit) {
+                Assert.assertTrue(payment.amount > 19.99);
+                Assert.assertTrue(payment.amount < 20.01);
+            } else {
+                Assert.assertTrue(false);
+            }
+        }
 
         invoice.items.remove(1);
         sm.write(invoice);

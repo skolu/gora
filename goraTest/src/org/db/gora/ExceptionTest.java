@@ -1,6 +1,5 @@
 package org.db.gora;
 
-import android.database.sqlite.SQLiteDatabase;
 import android.test.AndroidTestCase;
 import junit.framework.Assert;
 import org.db.gora.schema.Customer;
@@ -35,7 +34,7 @@ public class ExceptionTest extends AndroidTestCase {
         } catch (DataAccessException e) {
         }
         try {
-            Customer c = sm.read(Customer.class, 1L);
+            sm.read(Customer.class, 1L);
             Assert.assertTrue(false);
         } catch (DataAccessException e) {
         }

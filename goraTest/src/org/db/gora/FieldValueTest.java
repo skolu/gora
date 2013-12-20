@@ -6,6 +6,7 @@ import java.util.ArrayList;
 
 import junit.framework.Assert;
 import org.db.gora.accessors.IntFieldValueAccessor;
+import org.db.gora.accessors.ListFieldChildValue;
 import org.db.gora.schema.Invoice;
 
 import junit.framework.TestCase;
@@ -35,7 +36,7 @@ public class FieldValueTest extends TestCase {
 		FieldAccess fa = new FieldAccess();
 		FieldAccessChild fac = new FieldAccessChild();
 
-		ChildValueAccess.ListFieldChildValue lcv = new ChildValueAccess.ListFieldChildValue(f);
+		ListFieldChildValue lcv = new ListFieldChildValue(f);
 		lcv.appendChild(fac, fa);
 		
 		Assert.assertNotNull(fa.lst);
