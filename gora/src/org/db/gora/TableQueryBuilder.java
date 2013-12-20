@@ -72,6 +72,10 @@ final class TableQueryBuilder {
 			return tableData;
 		}
 
+        public TableData getParentTableData() {
+      	    return pathToId.length > 0 ? pathToId[0] : null;
+      	}
+
 		private String fromWhereByLinkedIdClause = null;
 		public String getFromWhereByLinkedIdClause() {
 			if (fromWhereByLinkedIdClause == null) {

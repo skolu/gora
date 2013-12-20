@@ -1,10 +1,12 @@
 package org.db.gora;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import android.content.ContentValues;
@@ -23,6 +25,23 @@ public class SQLiteManager implements DataManager {
 		mValues = new ConcurrentLinkedQueue<ContentValues>();
 	}
 
+    public static int mergeIds(long[] ids, int pos) {
+        if (pos > 1) {
+            Arrays.sort(ids, 0, pos);
+            int newPos = 1;
+            for (int i = newPos; i < pos; ++i) {
+                if (ids[i] != ids[newPos - 1]) {
+                    if (i != newPos) {
+                        ids[newPos] = ids[i];
+                    }
+                    ++newPos;
+                }
+            }
+            return newPos;
+        } else {
+            return pos;
+        }
+    }
 
     public <M, D> long[] queryLinks(Class<D> detailClazz, Class<M> masterClazz, long masterId) throws DataAccessException, DataIntegrityException {
         if (detailClazz == null) {
@@ -31,7 +50,6 @@ public class SQLiteManager implements DataManager {
         if (masterClazz == null) {
             throw new DataIntegrityException("SQLiteManager: gueryLinks: Null master class");
         }
-
 
         TableData detailTable = mSchema.getTableData(detailClazz);
         if (detailTable == null) {
@@ -46,53 +64,82 @@ public class SQLiteManager implements DataManager {
         List<TableLinkData> links = mSchema.getDetailLinks(masterClazz);
         if (links == null) return null;
 
-        TableLinkData linkData = null;
+        long[] ids = new long[256];
+        int pos = 0;
+
         for (TableLinkData tld: links) {
+            String query = null;
             if (tld.detailClass == detailClazz) {
-                linkData = tld;
-                break;
-            }
-        }
-        if (linkData == null) {
-            for (TableLinkData tld: links) {
-                List<ChildTableData> children = mSchema.getChildren(detailClazz);
-                for (ChildTableData ctd: children) {
-                    if (ctd.childClass == tld.detailClass) {
-                        linkData = tld;
-                        break;
+                query = String.format("SELECT %s FROM %s WHERE %s=? ", detailTable.primaryKey.columnName, detailTable.tableName, tld.detailField.columnName);
+            } else {
+                Class<?> parent = mSchema.getParentClass(tld.detailClass);
+                if (parent != null) {
+                    if (parent == detailClazz) {
+                        TableData queryTable = mSchema.getTableData(tld.detailClass);
+                        if (queryTable == null) {
+                            throw new DataIntegrityException(String.format("SQLiteManager: Class %s is not registered", tld.detailClass.getName()));
+                        }
+                        query = String.format("SELECT DISTINCT %s FROM %s WHERE %s=? ", queryTable.foreignKey.columnName, queryTable.tableName, tld.detailField.columnName);
+                    } else {
+                        while (parent != null) {
+                            if (parent == detailClazz) {
+                                break;
+                            }
+                            parent = mSchema.getParentClass(parent);
+                        }
+                        if (parent != null) {
+                            StringBuilder builder = new StringBuilder();
+                            builder.append(String.format("%s", detailTable.tableName));
+                            TableData lastTable = detailTable;
+                            parent = mSchema.getParentClass(tld.detailClass);
+                            while (parent != detailClazz) {
+                                TableData thisTable = mSchema.getTableData(parent);
+                                if (thisTable == null) {
+                                    throw new DataIntegrityException(String.format("SQLiteManager: Class %s is not registered", parent.getName()));
+                                }
+
+                                builder.append(String.format(" INNER JOIN %s ON %s.%s = %s.%s",
+                                        thisTable.tableName,
+                                        thisTable.tableName, thisTable.primaryKey.columnName,
+                                        lastTable.tableName, lastTable.foreignKey.columnName));
+
+                                lastTable = thisTable;
+                                parent = mSchema.getParentClass(parent);
+                                if (parent == null) {
+                                    break;
+                                }
+                            }
+                            if (parent == detailClazz) {
+                                query = String.format("SELECT DISTINCT %s.%s FORM %s WHERE %s.%s=?",
+                                        lastTable.tableName, lastTable.foreignKey.columnName,
+                                        builder.toString(),
+                                        detailTable.tableName, tld.detailField.columnName);
+                            }
+                        }
                     }
                 }
             }
-        }
-        if (linkData == null) {
-            throw new DataIntegrityException(String.format("SQLiteManager: queryLinks: There is no links between %s and %s", detailClazz.getName(), masterClazz.getName()));
-        }
 
-        String query;
-        if (linkData.detailClass == detailClazz) {
-            query = String.format("SELECT %s FROM %s WHERE %s=? ", detailTable.primaryKey.columnName, detailTable.tableName, linkData.detailField.columnName);
-        } else {
-            TableData childTable = mSchema.getTableData(linkData.detailClass);
-            if (childTable == null) {
-                throw new DataIntegrityException(String.format("SQLiteManager: Class %s is not registered", linkData.detailClass.getName()));
-            }
-            query = String.format("SELECT DISTINCT %s FROM %s WHERE %s=? ", childTable.foreignKey.columnName, childTable.tableName, linkData.detailField.columnName);
-        }
-        Cursor cursor = mDb.rawQuery(query, new String[] {Long.toString(masterId)});
-        if (cursor != null) {
-            long[] ids = new long[256];
-            int pos = 0;
-            if (cursor.moveToNext()) {
-                ids[pos] = cursor.getLong(0);
-                ++pos;
-                if (pos >= ids.length) {
-                    ids = Arrays.copyOf(ids, ids.length * 2);
+            if (query != null) {
+                Cursor cursor = mDb.rawQuery(query, new String[] {Long.toString(masterId)});
+                if (cursor != null) {
+                    if (cursor.moveToNext()) {
+                        ids[pos] = cursor.getLong(0);
+                        ++pos;
+                        if (pos >= ids.length) {
+                            ids = Arrays.copyOf(ids, ids.length * 2);
+                        }
+                    }
+                    cursor.close();
+                    return Arrays.copyOf(ids, pos);
                 }
             }
-            cursor.close();
+
+        }
+        if (pos != 0) {
+            pos = mergeIds(ids, pos);
             return Arrays.copyOf(ids, pos);
         }
-
         return null;
     }
 
@@ -345,13 +392,9 @@ public class SQLiteManager implements DataManager {
                         long id = (Long) tableData.primaryKey.valueAccessor.getValue(entity);
 
                         if (children != null) {
+                            Object[] parents = new Object[] {entity};
                             for (ChildTableData child: children) {
-                                Object[] childRows = readChildren(id, tableData.tableClass, child.childClass);
-                                if (childRows != null) {
-                                    for (Object row: childRows) {
-                                        child.valueAccessor.appendChild(row, entity);
-                                    }
-                                }
+                                readChildren(id, tableData.tableClass, parents, child);
                             }
                         }
 
@@ -478,7 +521,9 @@ public class SQLiteManager implements DataManager {
         List<ChildTableData> children = mSchema.getChildren(toDelete);
         if (children != null) {
             for (ChildTableData child: children) {
-                deleteChildren(id, idClazz, child.childClass);
+                for (Class<?> childClass: child.children) {
+                    deleteChildren(id, idClazz, childClass);
+                }
             }
         }
 
@@ -541,103 +586,89 @@ public class SQLiteManager implements DataManager {
 					c.close();
 				}
 			}
-			if (entity != null && !skipChildren) {
-				List<ChildTableData> children = mSchema.getChildren(clazz);
-				if (children != null) {
-					for (ChildTableData child: children) {
-						Object[] childRows = readChildren(id, clazz, child.childClass);
-						if (childRows != null) {
-							for (Object row: childRows) {
-								child.valueAccessor.appendChild(row, entity);
-							}
-						}
-					}
-				}
-			} 
-		} catch (Exception e) {
+            if (entity != null && !skipChildren) {
+                List<ChildTableData> children = mSchema.getChildren(clazz);
+                if (children != null) {
+                    Object[] parents = new Object[] {entity};
+                    for (ChildTableData child: children) {
+                        readChildren(id, clazz, parents, child);
+                    }
+                }
+            }
+        } catch (Exception e) {
 			throw new DataAccessException("SQLiteManager: Read: Internal exception", e);
 		}
 
 		return entity;
 	}
 
-	private Object[] readChildren(long id, Class<?> idClazz, Class<?> childClazz) throws Exception 
-	{
-		TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(childClazz, idClazz);
-		if (builder == null) {
-			throw new DataIntegrityException(
-					String.format("SQLiteManager: readChildren: classes %s and %s are unrelated.", idClazz.getName(), childClazz.getName()));
-		}
+    void readChildren(long id, Class<?> idClazz, Object[] parents, ChildTableData childData) throws Exception {
+        for (Class<?> childClazz: childData.children) {
+            TableQueryBuilder.LinkedQueryBuilder builder = mSchema.getLinkedQueryBuilder(childClazz, idClazz);
+            if (builder == null) {
+                throw new DataIntegrityException(
+                        String.format("SQLiteManager: readChildren: classes %s and %s are not related.",
+                                idClazz.getName(), childClazz.getName()));
+            }
+            Object[] rows = new Object[256];
+            int pos = 0;
 
-		Object[] rows = new Object[256];
-		int childCount = 0;
+            Cursor cc = mDb.rawQuery(builder.getSelectByIdQuery(), new String[]{Long.toString(id)});
+            if (cc != null) {
+                try {
+                    while (cc.moveToNext()) {
+                        if (pos > rows.length) {
+                            rows = Arrays.copyOf(rows, rows.length + 256);
+                        }
+                        rows[pos] = builder.getTableData().tableClass.newInstance();
+                        populateStorage(rows[pos], builder.getTableData().fields, cc);
+                        pos++;
+                    }
+                } finally {
+                    cc.close();
+                }
+            }
 
-		Cursor cc = mDb.rawQuery(builder.getSelectByIdQuery(), new String[]{Long.toString(id)});
-		if (cc != null) {
-			try {
-				while (cc.moveToNext()) {
-					if (childCount > rows.length) {
-						Object[] newArray = new Object[rows.length + 256];
-						System.arraycopy(rows, 0, newArray, 0, rows.length);
-						rows = newArray;
-					}
-					Object chobj = builder.getTableData().tableClass.newInstance();
-					populateStorage(chobj, builder.getTableData().fields, cc);
+            if (pos > 0) {
+                rows = Arrays.copyOf(rows, pos);
 
-                    rows[childCount] = chobj;
-					childCount++;
-				}
-			} finally {
-				cc.close();
-			}
-		}
-		if (childCount == 0) return null;
+                ValueAccess childAccessor = builder.getTableData().foreignKey.valueAccessor;
+                Arrays.sort(rows, new LongValueComparator(childAccessor));
+                ValueAccess parentAccessor = builder.getParentTableData().primaryKey.valueAccessor;
+                Arrays.sort(parents, new LongValueComparator(parentAccessor));
 
-		Object[] result = new Object[childCount];
-		System.arraycopy(rows, 0, result, 0, childCount);
+                int parentPos = 0;
+                int childPos = 0;
+                long parentId = (Long) parentAccessor.getValue(parents[parentPos]);
+                while (childPos < rows.length) {
+                    long childId = (Long) childAccessor.getValue(rows[childPos]);
+                    if (parentId > childId) { // error
+                        Log.e(Settings.TAG, "Datamanager.readChildren: Scope merge: algorithm error 1");
+                    } else {
+                        while (parentId < childId) {
+                            parentPos++;
+                            if (parentPos >= parents.length) {
+                                Log.e(Settings.TAG, "Datamanager.readChildren: Scope merge: algorithm error 2");
+                                break;
+                            }
+                            parentId = (Long) parentAccessor.getValue(parents[parentPos]);
+                        }
+                        if (parentId == childId) {
+                            childData.valueAccessor.appendChild(rows[childPos], parents[parentPos]);
+                        }
+                    }
+                    childPos++;
+                }
 
-		List<ChildTableData> children = mSchema.getChildren(childClazz);
-
-		if (children != null) {
-			ValueAccess valueAccessor = builder.getTableData().primaryKey.valueAccessor;
-			Arrays.sort(result, new LongValueComparator(valueAccessor));
-			for (ChildTableData childSchema: children) {
-				Object[] childRows = readChildren(id, idClazz, childSchema.childClass);
-				if (childRows != null) {
-					ValueAccess childAccessor = childSchema.foreignKeyField.valueAccessor;
-					if (childRows.length > 1) {
-						Arrays.sort(childRows, new LongValueComparator(childAccessor));
-					}
-					int resultIdx = 0;
-					int childIdx = 0;
-					long resultId = (Long) valueAccessor.getValue(result[resultIdx]);
-					while (childIdx < childRows.length) {
-						long childId = (Long) childAccessor.getValue(childRows[childIdx]);
-						if (resultId > childId) { // error
-							Log.e(Settings.TAG, "Datamanager.readChildren: Scope merge: algorithm error 1");
-						} else {
-							while (resultId < childId) {
-								resultIdx++;
-								if (resultIdx >= result.length) break;
-								resultId = (Long) valueAccessor.getValue(result[resultIdx]);
-							}
-							if (resultId == childId) {
-								childSchema.valueAccessor.appendChild(childRows[childIdx], result[resultIdx]);
-							}
-						}
-						if (resultIdx >= result.length) break;
-						childIdx++;
-					}
-
-					if (childIdx < childRows.length) {
-						Log.e(Settings.TAG, "Datamanager.readChildren: Scope merge: algorithm error 2");
-					} 
-				}
-			}
-		}
-
-		return result;
-	}
+                List<ChildTableData> children = mSchema.getChildren(childClazz);
+                if (children != null) {
+                    for (ChildTableData c: children) {
+                        readChildren(id, idClazz, rows, c);
+                    }
+                }
+            }
+        }
+    }
 
 	private void clearIdInArray(long id, long[] array) {
 		if (array != null) {
@@ -649,7 +680,38 @@ public class SQLiteManager implements DataManager {
 			}
 		}
 	}
-	
+
+    static class GlobalId {
+        public GlobalId(Class<?> tableClass, long recordId) {
+            this.tableClass = tableClass;
+            this.recordId = recordId;
+        }
+        Class<?> tableClass;
+        long recordId;
+    }
+
+    static Comparator<GlobalId> sGlobalIdComparator = new Comparator<GlobalId>() {
+        @Override
+        public int compare(GlobalId obj1, GlobalId obj2) {
+            if (obj1.tableClass == obj2.tableClass) {
+                if (obj1.recordId == obj2.recordId) {
+                    return 0;
+                }
+                else if (obj1.recordId < obj2.recordId) {
+                    return -1;
+                } else {
+                    return 1;
+                }
+
+            }
+            else if (obj1.tableClass.hashCode() < obj2.tableClass.hashCode()) {
+                return -1;
+            } else {
+                return -1;
+            }
+        }
+    };
+
 	private long write(Object scope, long parentId, boolean withChildren) throws Exception {
 		Class<?> clazz = scope.getClass();
 		TableQueryBuilder builder = mSchema.getQueryBuilder(clazz);
@@ -698,26 +760,19 @@ public class SQLiteManager implements DataManager {
 			List<ChildTableData> children = mSchema.getChildren(clazz);
             if (children != null) {
                 for (ChildTableData child: children) {
-                    long[] ids = null;
+                    Set<GlobalId> globalIds = new TreeSet<GlobalId>(sGlobalIdComparator);
                     if (!isInsert) {
-                        TableQueryBuilder.LinkedQueryBuilder childBuilder = mSchema.getLinkedQueryBuilder(child.childClass, clazz);
-                        Cursor cc = mDb.rawQuery(childBuilder.getSelectIdByLinkedIdQuery(), new String[]{Long.toString(id)});
-                        if (cc != null) {
-                            ids = new long[256];
-                            int pos = 0;
-                            try {
-                                while (cc.moveToNext()) {
-                                    ids[pos] = cc.getLong(0);
-                                    ++pos;
-                                    if (pos >= ids.length) {
-                                        ids = Arrays.copyOf(ids, ids.length + 256);
+                        for (Class<?> childClass: child.children) {
+                            TableQueryBuilder.LinkedQueryBuilder childBuilder = mSchema.getLinkedQueryBuilder(childClass, clazz);
+                            Cursor cc = mDb.rawQuery(childBuilder.getSelectIdByLinkedIdQuery(), new String[]{Long.toString(id)});
+                            if (cc != null) {
+                                try {
+                                    while (cc.moveToNext()) {
+                                        globalIds.add(new GlobalId(childClass, cc.getLong(0)));
                                     }
+                                } finally {
+                                    cc.close();
                                 }
-                                long[] newIds = new long[pos];
-                                System.arraycopy(ids, 0, newIds, 0, pos);
-                                ids = newIds;
-                            } finally {
-                                cc.close();
                             }
                         }
                     }
@@ -727,7 +782,7 @@ public class SQLiteManager implements DataManager {
                         switch(child.linkType) {
                             case SINGLE: {
                                 long childId = write(childObject, id, true);
-                                clearIdInArray(childId, ids);
+                                globalIds.remove(new GlobalId(childObject.getClass(), childId));
                             }
                             break;
 
@@ -735,26 +790,24 @@ public class SQLiteManager implements DataManager {
                                 List<?> list = (List<?>) childObject;
                                 for (Object lo: list) {
                                     long childId = write(lo, id, true);
-                                    clearIdInArray(childId, ids);
+                                    globalIds.remove(new GlobalId(lo.getClass(), childId));
                                 }
                             }
                             break;
 
                             case SET: {
-                                Set<?> list = (Set<?>) childObject;
-                                for (Object lo: list) {
-                                    long childId = write(lo, id, true);
-                                    clearIdInArray(childId, ids);
+                                Set<?> set = (Set<?>) childObject;
+                                for (Object so: set) {
+                                    long childId = write(so, id, true);
+                                    globalIds.remove(new GlobalId(so.getClass(), childId));
                                 }
                             }
                             break;
                         }
                     }
-                    if (!isInsert && ids != null) {
-                        for (long chid: ids) {
-                            if (chid != 0) {
-                                delete(child.childClass, chid);
-                            }
+                    if (!isInsert) {
+                        for (GlobalId gId: globalIds) {
+                            delete(gId.tableClass, gId.recordId);
                         }
                     }
                 }

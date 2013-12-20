@@ -5,6 +5,8 @@ import junit.framework.TestCase;
 import org.db.gora.schema.Invoice;
 import org.db.gora.schema.SchemaUtils;
 
+import java.util.Date;
+
 public class PredicateBuilderTest extends TestCase {
     SQLiteSchema schema;
 
@@ -27,7 +29,7 @@ public class PredicateBuilderTest extends TestCase {
 
         wc.clear();
 
-        wc.range("modified", 123456789, 987654321);
+        wc.range("modified", new Date(123456789), new Date(987654321));
         actual = wc.getWhereClause();
         actual = actual.replaceAll("^\\(+", "");
         actual = actual.replaceAll("\\)+$", "");

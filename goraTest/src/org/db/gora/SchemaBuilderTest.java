@@ -5,6 +5,8 @@ import junit.framework.TestCase;
 import org.db.gora.schema.Customer;
 import org.db.gora.schema.Inventory;
 import org.db.gora.schema.Invoice;
+import org.db.gora.schema.InvoiceCashPayment;
+import org.db.gora.schema.InvoiceCreditPayment;
 import org.db.gora.schema.SchemaUtils;
 
 import java.util.List;
@@ -29,13 +31,33 @@ public class SchemaBuilderTest extends TestCase {
         Assert.assertNotNull(childrenData);
         Assert.assertEquals(childrenData.size(), 3);
         for (ChildTableData child: childrenData) {
-            if (child.childClass == Invoice.InvoiceItem.class) {
-            } else if (child.childClass == Invoice.InvoicePayment.class) {
-            } else if (child.childClass == Invoice.InvoiceCustomer.class) {
-            } else {
-                Assert.assertTrue(false);
+            if (child.children.length == 1) {
+                if (child.children[0] == Invoice.InvoiceItem.class || child.children[0] == Invoice.InvoiceCustomer.class) {
+                } else {
+                    Assert.assertTrue(false);
+                }
+            }
+            else if (child.children.length == 2) {
+                if (child.children[0] == InvoiceCashPayment.class || child.children[1] == InvoiceCreditPayment.class) {
+                } else {
+                    Assert.assertTrue(false);
+                }
             }
         }
+
+        childrenData = mSchema.getChildren(Invoice.InvoiceItem.class);
+        Assert.assertNotNull(childrenData);
+        Assert.assertEquals(childrenData.size(), 1);
+        for (ChildTableData child: childrenData) {
+            if (child.children.length == 1) {
+                if (child.children[0] == Invoice.InvoiceItemAttribute.class) {
+                } else {
+                    Assert.assertTrue(false);
+                }
+            }
+        }
+
+
 
         TableData invnData = mSchema.getTableData(Inventory.class);
         Assert.assertNotNull(invnData);

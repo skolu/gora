@@ -127,7 +127,7 @@ public class DatabaseHelperTest extends AndroidTestCase {
         invc_item.qty = 2.;
         invoice.items.add(invc_item);
 
-        Invoice.InvoicePayment payment = new Invoice.InvoicePayment();
+        InvoicePayment payment = new InvoiceCashPayment();
         payment.amount = 100;
         invoice.getPayments().add(payment);
 
