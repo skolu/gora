@@ -23,7 +23,7 @@ public class StringPropertyValueAccessor implements ValueAccess {
     }
 
     @Override
-    public Object getValue(Object storage) throws Exception {
+    public String getValue(Object storage) throws Exception {
         Object value = mGetter.invoke(storage);
         if (value == null) {
             return null;

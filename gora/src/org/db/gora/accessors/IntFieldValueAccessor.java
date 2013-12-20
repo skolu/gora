@@ -18,7 +18,7 @@ final public class IntFieldValueAccessor implements ValueAccess {
     public Integer getValue(Object storage) throws IllegalAccessException, DataAccessException {
         Object value = mField.get(storage);
         if (value == null) {
-            return Integer.valueOf(0);
+            return 0;
         }
 
         switch (mJavaClass) {
@@ -37,7 +37,7 @@ final public class IntFieldValueAccessor implements ValueAccess {
     @Override
     public void setValue(Object value, Object storage) throws IllegalAccessException {
         if (value == null) {
-            value = Integer.valueOf(0);
+            value = 0;
         }
         switch (mJavaClass) {
             case Integer:

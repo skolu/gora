@@ -32,7 +32,7 @@ public class IntPropertyValueAccessor implements ValueAccess {
                     return (int) (byte) (Byte) value;
             }
         }
-        return Integer.valueOf(0);
+        return 0;
     }
 
     @Override

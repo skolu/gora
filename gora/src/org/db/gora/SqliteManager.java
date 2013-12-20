@@ -136,7 +136,7 @@ public class SQLiteManager implements DataManager {
             }
 
         }
-        if (pos != 0) {
+        if (pos > 0) {
             pos = mergeIds(ids, pos);
             return Arrays.copyOf(ids, pos);
         }
@@ -154,7 +154,8 @@ public class SQLiteManager implements DataManager {
         return new PredicateBuilder(tableData);
     }
 
-    public <T> long[] queryIds(Class<T> clazz, String where, String[] whereArgs, String orderBy) throws DataAccessException {
+    @Override
+    public long[] queryIds(Class<?> clazz, String where, String[] whereArgs, String orderBy) throws DataAccessException {
         if (clazz == null) {
             throw new DataAccessException("SQLiteManager: QueryIds: Null class");
         }
@@ -195,7 +196,7 @@ public class SQLiteManager implements DataManager {
     }
 
     @Override
-    public <T> FieldCursor queryFields(Class<T> clazz, String where, String[] whereArgs, String... fields) throws DataAccessException, DataIntegrityException {
+    public FieldCursor queryFields(Class<?> clazz, String where, String[] whereArgs, String... fields) throws DataAccessException, DataIntegrityException {
         if (clazz == null) {
             throw new DataAccessException("SQLiteManager: QueryIds: Null class");
         }
@@ -471,7 +472,7 @@ public class SQLiteManager implements DataManager {
 	 * Deletes an entity
 	 */
 	@Override
-    public <T> void delete(Class<T> clazz, long id) throws DataAccessException {
+    public void delete(Class<?> clazz, long id) throws DataAccessException {
         if (clazz == null) {
             throw new DataAccessException("SQLiteManager: Read: class is null");
         }
@@ -669,17 +670,6 @@ public class SQLiteManager implements DataManager {
             }
         }
     }
-
-	private void clearIdInArray(long id, long[] array) {
-		if (array != null) {
-			for (int i = 0; i < array.length; ++i) {
-				if (array[i] == id) {
-					array[i] = 0;
-					break;
-				}
-			}
-		}
-	}
 
     static class GlobalId {
         public GlobalId(Class<?> tableClass, long recordId) {
