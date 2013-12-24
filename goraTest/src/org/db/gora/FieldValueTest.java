@@ -5,8 +5,8 @@ import java.util.ArrayList;
 
 
 import junit.framework.Assert;
-import org.db.gora.accessors.IntFieldValueAccessor;
-import org.db.gora.accessors.ListFieldChildValue;
+import org.db.gora.accessors.IntFieldAccessor;
+import org.db.gora.accessors.ListFieldChildAccessor;
 import org.db.gora.schema.Invoice;
 
 import junit.framework.TestCase;
@@ -24,7 +24,7 @@ public class FieldValueTest extends TestCase {
 		Field f = FieldAccess.class.getDeclaredField("intField");
 		FieldAccess fa = new FieldAccess();
 		
-		IntFieldValueAccessor fv = new IntFieldValueAccessor(f);
+		IntFieldAccessor fv = new IntFieldAccessor(f);
 		int declared = 100;
 		fv.setValue(Integer.valueOf(declared), fa);
 		int expected = (Integer)fv.getValue(fa);
@@ -36,7 +36,7 @@ public class FieldValueTest extends TestCase {
 		FieldAccess fa = new FieldAccess();
 		FieldAccessChild fac = new FieldAccessChild();
 
-		ListFieldChildValue lcv = new ListFieldChildValue(f);
+		ListFieldChildAccessor lcv = new ListFieldChildAccessor(f);
 		lcv.appendChild(fac, fa);
 		
 		Assert.assertNotNull(fa.lst);

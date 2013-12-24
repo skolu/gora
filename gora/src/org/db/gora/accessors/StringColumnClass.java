@@ -12,20 +12,15 @@
  * limitations under the License.
  */
 
-package org.db.gora;
-
-import java.util.List;
+package org.db.gora.accessors;
 
 /**
-  * Defines the SQLite index info
-  * See {@link org.db.gora.DatabaseHelper}
-  *
-  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
+ * Enums the supported java types that are mapped into SQLite TEXT
+ *
+ * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
 
-class DbIndexInfo {
-    String indexName;
-    String tableName;
-    boolean isUnique;
-    List<String> columns;
+public enum StringColumnClass {
+    String,
+    Enum
 }

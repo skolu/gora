@@ -1,6 +1,25 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.db.gora;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -14,6 +33,13 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
+/**
+ *
+ * See {@link DataManager}
+ *
+ * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
+ */
+
 public class SQLiteManager implements DataManager {
 	final SQLiteDatabase mDb;
 	final SQLiteSchema mSchema;
@@ -24,24 +50,6 @@ public class SQLiteManager implements DataManager {
 		mSchema = schema;
 		mValues = new ConcurrentLinkedQueue<ContentValues>();
 	}
-
-    public static int mergeIds(long[] ids, int pos) {
-        if (pos > 1) {
-            Arrays.sort(ids, 0, pos);
-            int newPos = 1;
-            for (int i = newPos; i < pos; ++i) {
-                if (ids[i] != ids[newPos - 1]) {
-                    if (i != newPos) {
-                        ids[newPos] = ids[i];
-                    }
-                    ++newPos;
-                }
-            }
-            return newPos;
-        } else {
-            return pos;
-        }
-    }
 
     public long[] queryLinks(Class<?> detailClazz, Class<?> masterClazz, long masterId) throws DataAccessException, DataIntegrityException {
         if (detailClazz == null) {
@@ -458,7 +466,27 @@ public class SQLiteManager implements DataManager {
 		
 		mDb.beginTransactionNonExclusive();
 		try {
-			write(entity, 0, true);
+
+			long id = write(entity, 0, true);
+
+            if (SQLiteKeywords.class.isAssignableFrom(entity.getClass())) {
+                String keywords = ((SQLiteKeywords) entity).getKeywords();
+                if (keywords == null) {
+                    keywords = "";
+                }
+
+                TableData data = mSchema.getTableData(entity.getClass());
+                if (data != null) {
+                    String query = String.format("REPLACE INTO %s_KW (docid, content) VALUES (?, ?);", data.tableName);
+                    try {
+                        mDb.execSQL(query, new String[] {Long.toString(id), keywords.toLowerCase()});
+                    }
+                    catch (Exception e) {
+                        Log.e(Settings.TAG, "Update Keywords", e);
+                    }
+                }
+            }
+
 			mDb.setTransactionSuccessful();
             return true;
 		} catch (Exception e) {
@@ -510,6 +538,19 @@ public class SQLiteManager implements DataManager {
                 }
             }
 
+            if (SQLiteKeywords.class.isAssignableFrom(clazz)) {
+                TableData data = mSchema.getTableData(clazz);
+                if (data != null) {
+                    String query = String.format("DELETE FROM %s_KW WHERE docid = ?", data.tableName);
+                    try {
+                        mDb.execSQL(query, new String[] {Long.toString(id)});
+                    }
+                    catch (Exception e) {
+                        Log.e(Settings.TAG, "Delete Keywords", e);
+                    }
+                }
+            }
+
             mDb.setTransactionSuccessful();
         } catch (Exception e) {
             throw new DataAccessException("SQLiteManager: Delete: Internal exception", e);
@@ -543,6 +584,127 @@ public class SQLiteManager implements DataManager {
             }
             mDb.delete(builder.tableData.tableName, builder.getDeleteByIdWhereClause(), new String[] {Long.toString(id)});
         }
+    }
+
+    static class KeywordRecord {
+        public KeywordRecord(long id, double weight) {
+            this.id = id;
+            this.weight = weight;
+        }
+        long id;
+        double weight;
+    }
+
+    static Comparator<KeywordRecord> sKeywordWeightComparator = new Comparator<KeywordRecord>() {
+        @Override
+        public int compare(KeywordRecord rec1, KeywordRecord rec2) {
+            if (rec1.weight < rec2.weight) {
+                return 1;
+            }
+            else if (rec1.weight > rec2.weight) {
+                return -1;
+            }
+            return 0;
+        }
+    };
+
+    static Comparator<KeywordRecord> sKeywordIdComparator = new Comparator<KeywordRecord>() {
+        @Override
+        public int compare(KeywordRecord rec1, KeywordRecord rec2) {
+            if (rec1.id < rec2.id) {
+                return -1;
+            }
+            else if (rec1.id > rec2.id) {
+                return 1;
+            }
+            return 0;
+        }
+    };
+
+    /**
+     * Queries full-text search table.
+     * The result is sorted according to criteria relevance
+     *
+     * @param clazz
+     * @param criteria
+     * @return ID array sorted by criteria hit weight
+     * @throws DataAccessException
+     * @throws DataIntegrityException
+     */
+    public long[] queryKeywords(Class<?> clazz, String criteria) throws DataAccessException, DataIntegrityException {
+        if (clazz == null) {
+            throw new DataAccessException("SQLiteManager: Query Keywords: class is null");
+        }
+        if (mDb == null) {
+            throw new DataAccessException("SQLiteManager: Query Keywords: Sqlite database is null");
+        }
+        if (!mDb.isOpen()) {
+            throw new DataAccessException("SQLiteManager: Query Keywords: Sqlite database is not open");
+        }
+
+        TableData tableData = mSchema.getTableData(clazz);
+        if (tableData == null) {
+            throw new DataAccessException(String.format("SQLiteManager: Query Keywords: class %s is not registered", clazz.getName()));
+        }
+
+        if (!tableData.hasKeywords) {
+            throw new DataAccessException(String.format("SQLiteManager: Query Keywords: class %s has no keywords", clazz.getName()));
+        }
+
+        List<KeywordRecord> keywordRecords = new ArrayList<KeywordRecord>();
+
+        String query = String.format("SELECT docid, matchinfo(%s, 'pcx') FROM %<s WHERE content MATCH ?", String.format("%s_KW", tableData.tableName));
+        Cursor cursor = mDb.rawQuery(query, new String[]{ criteria.toLowerCase() });
+        if (cursor != null) {
+            try {
+                if (cursor.moveToNext()) {
+                    long id = cursor.getLong(0);
+                    byte[] matchInfo = cursor.getBlob(1);
+                    if (matchInfo != null) {
+                        IntBuffer match = ByteBuffer.wrap(matchInfo).order(ByteOrder.nativeOrder()).asIntBuffer();
+                        int phrases = match.get();
+                        int columns = match.get();
+                        double weight = 0.0;
+                        for (int phrase = 0; phrase < phrases; ++phrase) {
+                            for (int column = 0; column < columns; ++column) {
+                                if (match.remaining() >= 3) {
+                                    int this_row_hits = match.get();
+                                    int all_row_hits = match.get();
+                                    int docs_with_hits = match.get();
+
+                                    if (this_row_hits > 0) {
+                                        double rank = (double) this_row_hits / ((double) all_row_hits / (double) docs_with_hits);
+                                        rank *= 1.2 - ((double) phrase * 0.1);
+
+                                        weight += rank;
+                                    }
+                                }
+                            }
+                        }
+                        keywordRecords.add(new KeywordRecord(id, weight));
+                    }
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+
+        if (keywordRecords.size() > 0) {
+            if (keywordRecords.size() > 1) {
+                Collections.sort(keywordRecords, sKeywordWeightComparator);
+            }
+            int records = keywordRecords.size();
+            if (records > 1024) {
+                records = 1024;
+            }
+            long[] ids = new long[records];
+            for (int i = 0; i < records; ++i) {
+                ids[i] = keywordRecords.get(i).id;
+            }
+            return ids;
+        }
+
+        return new long[0];
     }
 
     /**
@@ -633,9 +795,9 @@ public class SQLiteManager implements DataManager {
             if (pos > 0) {
                 rows = Arrays.copyOf(rows, pos);
 
-                ValueAccess childAccessor = builder.getTableData().foreignKey.valueAccessor;
+                ColumnAccessor childAccessor = builder.getTableData().foreignKey.valueAccessor;
                 Arrays.sort(rows, new LongValueComparator(childAccessor));
-                ValueAccess parentAccessor = builder.getParentTableData().primaryKey.valueAccessor;
+                ColumnAccessor parentAccessor = builder.getParentTableData().primaryKey.valueAccessor;
                 Arrays.sort(parents, new LongValueComparator(parentAccessor));
 
                 int parentPos = 0;
@@ -912,6 +1074,24 @@ public class SQLiteManager implements DataManager {
                     Log.w(Settings.TAG, String.format("Unsupported data type: \"%s\"", field.dataType.toString()));
                     break;
             }
+        }
+    }
+
+    static int mergeIds(long[] ids, int pos) {
+        if (pos > 1) {
+            Arrays.sort(ids, 0, pos);
+            int newPos = 1;
+            for (int i = newPos; i < pos; ++i) {
+                if (ids[i] != ids[newPos - 1]) {
+                    if (i != newPos) {
+                        ids[newPos] = ids[i];
+                    }
+                    ++newPos;
+                }
+            }
+            return newPos;
+        } else {
+            return pos;
         }
     }
 }

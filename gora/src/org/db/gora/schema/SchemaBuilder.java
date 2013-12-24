@@ -132,16 +132,16 @@ public class SchemaBuilder {
 				if ((modifiers & Modifier.PUBLIC) != 0) {
                     switch (fd.dataType) {
                         case INT:
-                            fd.valueAccessor = new IntFieldValueAccessor(field);
+                            fd.valueAccessor = new IntFieldAccessor(field);
                             break;
                         case DOUBLE:
-                            fd.valueAccessor = new DoubleFieldValueAccessor(field);
+                            fd.valueAccessor = new DoubleFieldAccessor(field);
                             break;
                         case STRING:
-                            fd.valueAccessor = new StringFieldValueAccessor(field);
+                            fd.valueAccessor = new StringFieldAccessor(field);
                             break;
                         default:
-                            fd.valueAccessor = new GenericFieldValueAccessor(field);
+                            fd.valueAccessor = new GenericFieldAccessor(field);
                             break;
                     }
 				} else {
@@ -172,16 +172,16 @@ public class SchemaBuilder {
 					fd.dataType = resolveSimpleDataType(getter.getReturnType());
                     switch (fd.dataType) {
                         case INT:
-                            fd.valueAccessor = new IntPropertyValueAccessor(getter, setter);
+                            fd.valueAccessor = new IntPropertyAccessor(getter, setter);
                             break;
                         case DOUBLE:
-                            fd.valueAccessor = new DoublePropertyValueAccessor(getter, setter);
+                            fd.valueAccessor = new DoublePropertyAccessor(getter, setter);
                             break;
                         case STRING:
-                            fd.valueAccessor = new StringPropertyValueAccessor(getter, setter);
+                            fd.valueAccessor = new StringPropertyAccessor(getter, setter);
                             break;
                         default:
-                            fd.valueAccessor = new GenericPropertyValueAccessor(getter, setter);
+                            fd.valueAccessor = new GenericPropertyAccessor(getter, setter);
                             break;
                     }
 				}
@@ -271,10 +271,10 @@ public class SchemaBuilder {
                     }
 					switch(tld.linkType) {
 					case LIST:
-						tld.valueAccessor = new ListMethodChildValue(getter);
+						tld.valueAccessor = new ListMethodChildAccessor(getter);
 						break;
 					case SET:
-						tld.valueAccessor = new SetMethodChildValue(getter);
+						tld.valueAccessor = new SetMethodChildAccessor(getter);
 						break;
 					case SINGLE:
                         if (setter == null) {
@@ -282,7 +282,7 @@ public class SchemaBuilder {
                 				        		String.format("Cannot find a setter method for child %s in class: %s",
                 				        				field.getName(), classInfo.clazz.getName()));
                         }
-						tld.valueAccessor = new SimpleMethodChildValue(getter, setter);
+						tld.valueAccessor = new SimpleMethodChildAccessor(getter, setter);
 						break;
 					}
 					
@@ -295,13 +295,13 @@ public class SchemaBuilder {
 					}
 					switch(tld.linkType) {
 					case LIST:
-						tld.valueAccessor = new ListFieldChildValue(field);
+						tld.valueAccessor = new ListFieldChildAccessor(field);
 						break;
 					case SET:
-						tld.valueAccessor = new SetFieldChildValue(field);
+						tld.valueAccessor = new SetFieldChildAccessor(field);
 						break;
 					case SINGLE:
-						tld.valueAccessor = new SimpleFieldChildValue(field);
+						tld.valueAccessor = new SimpleFieldChildAccessor(field);
 						break;
 					}
 				}

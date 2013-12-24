@@ -12,17 +12,28 @@
  * limitations under the License.
  */
 
-package org.db.gora;
+package org.db.gora.accessors;
 
 /**
- * Defines an exception that occurs in case of schema errors.
+ * Enums the supported java types that are mapped into SQLite REAL
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
-public class DataIntegrityException extends Exception {
-	
-	public DataIntegrityException(String detailedMessage) {
-		super(detailedMessage);
-	}
-	private static final long serialVersionUID = -3570674490101843350L;
+
+enum DoubleColumnClass {
+    Double,
+    Float,
+    BigDecimal;
+
+    static DoubleColumnClass resolveType(Class<?> type) {
+        if (type == java.lang.Double.TYPE) {
+            return DoubleColumnClass.Double;
+        } else if (type == java.lang.Float.TYPE) {
+            return DoubleColumnClass.Float;
+        } else if (type == java.math.BigDecimal.class) {
+            return DoubleColumnClass.BigDecimal;
+        } else {
+            return DoubleColumnClass.Double;
+        }
+    }
 }

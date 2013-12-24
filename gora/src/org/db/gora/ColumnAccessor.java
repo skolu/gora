@@ -15,14 +15,33 @@
 package org.db.gora;
 
 /**
- * Defines an exception that occurs in case of schema errors.
+ * Defines the methods used by column value accessor
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
-public class DataIntegrityException extends Exception {
-	
-	public DataIntegrityException(String detailedMessage) {
-		super(detailedMessage);
-	}
-	private static final long serialVersionUID = -3570674490101843350L;
+
+public interface ColumnAccessor {
+    /**
+     * Returns column value
+     *
+     * @param storage Java class mapped to SQL table
+     * @return
+     * @throws Exception
+     */
+	Object getValue(Object storage) throws Exception;
+
+    /**
+     * Sets column value
+     * @param value column value
+     * @param storage Java class mapped to SQL table
+     * @throws Exception
+     */
+	void setValue(Object value, Object storage) throws Exception;
+
+    /**
+     * Not sure it's needed
+     *
+     * @return storage/table class
+     */
+	Class<?> getStorageClass();
 }

@@ -1,3 +1,17 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.db.gora;
 
 import java.util.ArrayList;
@@ -11,8 +25,22 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+/**
+ * Extends {@link SQLiteOpenHelper} to support SQLite database schema modification
+ * according to {@link SQLiteSchema}
+ *
+ * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
+ */
+
 public class DatabaseHelper extends SQLiteOpenHelper {
 
+    /**
+     * Creates a new DatabaseHelper class instance.
+     *
+     * @param context Android context
+     * @param databaseName Database name. null if in-memory database.
+     * @param schema
+     */
     public DatabaseHelper(Context context, String databaseName, SQLiteSchema schema) {
         super(context, databaseName, null, schema.getDatabaseVersion());
 
@@ -308,6 +336,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         String idxSyntax = getIndexSyntax(foundIndex);
                         Log.i(Settings.TAG, idxSyntax);
                         db.execSQL(idxSyntax);
+                    }
+                }
+
+                if (tableData.hasKeywords) {
+                    String ftsSyntax = String.format("CREATE VIRTUAL TABLE IF NOT EXISTS %s_KW USING FTS4(tokenize=porter);", tableData.tableName);
+                    Log.i(Settings.TAG, ftsSyntax);
+                    try {
+                        db.execSQL(ftsSyntax);
+                    }
+                    catch (Exception e) {
+                        Log.i(Settings.TAG, "FTS", e);
                     }
                 }
             }

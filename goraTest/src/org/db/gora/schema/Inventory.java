@@ -1,7 +1,9 @@
 package org.db.gora.schema;
 
+import org.db.gora.SQLiteKeywords;
+
 @SqlTable(name="Inventory")
-public class Inventory extends Entity {
+public class Inventory extends Entity implements SQLiteKeywords {
     @SqlColumn(name="item_no")
     public int itemNo;
 
@@ -16,4 +18,9 @@ public class Inventory extends Entity {
 
     @SqlColumn(name="image")
     public byte[] image;
+
+    @Override
+    public String getKeywords() {
+        return String.format("%s %s %d", name, desc != null ? desc : "", itemNo);
+    }
 }

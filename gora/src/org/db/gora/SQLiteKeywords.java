@@ -14,18 +14,16 @@
 
 package org.db.gora;
 
-import java.util.List;
-
 /**
-  * Defines the SQLite index info
-  * See {@link org.db.gora.DatabaseHelper}
-  *
-  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
+ * <p>When implemented, enables full-text search for class/table
+ *
+ * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
 
-class DbIndexInfo {
-    String indexName;
-    String tableName;
-    boolean isUnique;
-    List<String> columns;
+public interface SQLiteKeywords {
+    /**
+     * Returns keywords
+     * @return
+     */
+    String getKeywords();
 }

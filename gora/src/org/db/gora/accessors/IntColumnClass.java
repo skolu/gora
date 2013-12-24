@@ -12,17 +12,28 @@
  * limitations under the License.
  */
 
-package org.db.gora;
+package org.db.gora.accessors;
 
 /**
- * Defines an exception that occurs in case of schema errors.
+ * Enums the supported java types that are mapped into SQLite INTEGER
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
-public class DataIntegrityException extends Exception {
-	
-	public DataIntegrityException(String detailedMessage) {
-		super(detailedMessage);
-	}
-	private static final long serialVersionUID = -3570674490101843350L;
+
+enum IntColumnClass {
+    Integer,
+    Short,
+    Byte;
+
+    static IntColumnClass resolveType(Class<?> type) {
+        if (type == java.lang.Integer.TYPE) {
+            return IntColumnClass.Integer;
+        } else if (type == java.lang.Short.TYPE) {
+            return IntColumnClass.Short;
+        } else if (type == java.lang.Byte.TYPE) {
+            return IntColumnClass.Byte;
+        } else {
+            return IntColumnClass.Integer;
+        }
+    }
 }
