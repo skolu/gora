@@ -18,7 +18,7 @@ import java.util.Arrays;
 
 /**
   * Defines ORM table schema
-  * See {@link org.db.gora.SQLiteSchema}
+  * See {@link SQLSchema}
   *
   * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */

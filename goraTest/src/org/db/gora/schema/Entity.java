@@ -1,10 +1,10 @@
 package org.db.gora.schema;
 
-import org.db.gora.SQLiteEvent;
+import org.db.gora.EntityEvent;
 
 import java.util.Date;
 
-public class Entity extends Row  implements SQLiteEvent {
+public class Entity extends Row  implements EntityEvent {
 	@SqlColumn(name="cloud_key", index=true)
 	public String cloudKey;
 
@@ -30,7 +30,7 @@ public class Entity extends Row  implements SQLiteEvent {
     @Override
     public boolean onWrite() {
         if (name == null) {
-            name = "Empty";
+            return false;
         }
         if (getId() == 0) {
             created = new Date();

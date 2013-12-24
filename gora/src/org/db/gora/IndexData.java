@@ -16,7 +16,7 @@ package org.db.gora;
 
 /**
   * Defines ORM index schema
-  * See {@link org.db.gora.SQLiteSchema}
+  * See {@link SQLSchema}
   *
   * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */

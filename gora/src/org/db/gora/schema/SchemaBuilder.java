@@ -22,20 +22,13 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.*;
 
-import org.db.gora.ChildDataType;
-import org.db.gora.ChildTableData;
-import org.db.gora.DataIntegrityException;
-import org.db.gora.FieldData;
-import org.db.gora.FieldDataType;
-import org.db.gora.IndexData;
-import org.db.gora.SQLiteSchema;
-import org.db.gora.TableData;
-import org.db.gora.TableLinkData;
+import org.db.gora.*;
+import org.db.gora.SQLSchema;
 import org.db.gora.accessors.*;
 
 /**
  * Extracts database information from the class annotations and
- * registers it with {@link SQLiteSchema}
+ * registers it with {@link org.db.gora.SQLSchema}
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
@@ -45,10 +38,10 @@ public class SchemaBuilder {
      * Extracts database information and registers it with database schema.
      *
      * @param clazz Java class containing sql schema annotation
-     * @param schema {@link SQLiteSchema} instance
+     * @param schema {@link org.db.gora.SQLSchema} instance
      * @throws DataIntegrityException
      */
-    public static void registerEntity(Class<?> clazz, SQLiteSchema schema) throws DataIntegrityException {
+    public static void registerEntity(Class<?> clazz, SQLSchema schema) throws DataIntegrityException {
         if (clazz == null || schema == null) return;
 
         List<TableData> tables = new ArrayList<TableData>();

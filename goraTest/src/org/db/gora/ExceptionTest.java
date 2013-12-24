@@ -7,7 +7,7 @@ import org.db.gora.schema.SchemaUtils;
 
 public class ExceptionTest extends AndroidTestCase {
 
-    SQLiteSchema schema;
+    SQLSchema schema;
     DatabaseHelper helper;
 
     @Override

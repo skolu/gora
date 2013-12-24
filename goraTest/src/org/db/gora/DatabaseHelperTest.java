@@ -5,12 +5,13 @@ import android.test.AndroidTestCase;
 import junit.framework.Assert;
 import org.db.gora.schema.*;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Set;
 
 public class DatabaseHelperTest extends AndroidTestCase {
-    SQLiteSchema schema;
+    SQLSchema schema;
     DatabaseHelper helper;
     SQLiteDatabase db;
 
@@ -23,6 +24,24 @@ public class DatabaseHelperTest extends AndroidTestCase {
 
     public void testDbCreate() throws DataAccessException {
         Assert.assertNotNull(db);
+    }
+
+    public void testDbUpgrade() throws DataAccessException {
+        String dbName = "aa.db";
+        DatabaseHelper h = new DatabaseHelper(getContext(), dbName, schema);
+
+        File f = getContext().getDatabasePath(dbName);
+        if (f.exists()) {
+            boolean ok = f.delete();
+            Assert.assertTrue(ok);
+        }
+
+        SQLiteDatabase d = h.getWritableDatabase();
+
+        SchemaUtils.sDatabaseVersion = 2;
+        h = new DatabaseHelper(getContext(), dbName, schema);
+        d = h.getWritableDatabase();
+        Assert.assertNotNull(d);
     }
 
     public void testCustomer() throws DataAccessException, DataIntegrityException {
@@ -125,6 +144,7 @@ public class DatabaseHelperTest extends AndroidTestCase {
         sm.write(invn2);
 
         Invoice invoice = new Invoice();
+        invoice.name = "INVC:0001";
         invoice.customer = new InvoiceCustomer(customer);
         invoice.customerId = customer.getId();
         invoice.items = new ArrayList<Invoice.InvoiceItem>();
@@ -151,6 +171,8 @@ public class DatabaseHelperTest extends AndroidTestCase {
         sm.write(invoice);
         Assert.assertEquals(invoice.getId(), 1L);
 
+        sm.delete(Inventory.class, invn2.getId());
+
         invoice = sm.read(Invoice.class, 1L);
         Assert.assertNotNull(invoice);
         Assert.assertNotNull(invoice.customer);
@@ -161,11 +183,13 @@ public class DatabaseHelperTest extends AndroidTestCase {
                 Assert.assertTrue(item.getQty() > 0.99f);
                 Assert.assertTrue(item.getQty() < 1.01f);
                 Assert.assertTrue(item.taxable);
+                Assert.assertEquals(item.invn_id, invn1_id);
             }
             else if (item.getName().equals("Item 2")) {
                 Assert.assertTrue(item.getQty() > 1.99f);
                 Assert.assertTrue(item.getQty() < 2.01f);
                 Assert.assertFalse(item.taxable);
+                Assert.assertEquals(item.invn_id, 0);
             } else {
                 Assert.assertTrue(false);
             }

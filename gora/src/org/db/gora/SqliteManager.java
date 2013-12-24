@@ -34,18 +34,17 @@ import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 /**
- *
- * See {@link DataManager}
+ * Android SQLite implementation of {@link DataManager}
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
 
 public class SQLiteManager implements DataManager {
 	final SQLiteDatabase mDb;
-	final SQLiteSchema mSchema;
+	final SQLSchema mSchema;
 	final ConcurrentLinkedQueue<ContentValues> mValues;
 
-	public SQLiteManager(SQLiteDatabase db, SQLiteSchema schema) {
+	public SQLiteManager(SQLiteDatabase db, SQLSchema schema) {
 		mDb = db;
 		mSchema = schema;
 		mValues = new ConcurrentLinkedQueue<ContentValues>();
@@ -407,8 +406,8 @@ public class SQLiteManager implements DataManager {
                             }
                         }
 
-                        if (SQLiteEvent.class.isAssignableFrom(entity.getClass())) {
-                            ((SQLiteEvent) entity).onRead();
+                        if (EntityEvent.class.isAssignableFrom(entity.getClass())) {
+                            ((EntityEvent) entity).onRead();
                         }
 
                         return entity;
@@ -458,8 +457,8 @@ public class SQLiteManager implements DataManager {
 			throw new DataAccessException("SQLiteManager: Write: Sqlite database is read-only");
 		}
 
-        if (SQLiteEvent.class.isAssignableFrom(entity.getClass())) {
-            if (!((SQLiteEvent) entity).onWrite()) {
+        if (EntityEvent.class.isAssignableFrom(entity.getClass())) {
+            if (!((EntityEvent) entity).onWrite()) {
                 return false;
             }
         }
@@ -469,8 +468,8 @@ public class SQLiteManager implements DataManager {
 
 			long id = write(entity, 0, true);
 
-            if (SQLiteKeywords.class.isAssignableFrom(entity.getClass())) {
-                String keywords = ((SQLiteKeywords) entity).getKeywords();
+            if (EntityKeyword.class.isAssignableFrom(entity.getClass())) {
+                String keywords = ((EntityKeyword) entity).getKeywords();
                 if (keywords == null) {
                     keywords = "";
                 }
@@ -538,7 +537,7 @@ public class SQLiteManager implements DataManager {
                 }
             }
 
-            if (SQLiteKeywords.class.isAssignableFrom(clazz)) {
+            if (EntityKeyword.class.isAssignableFrom(clazz)) {
                 TableData data = mSchema.getTableData(clazz);
                 if (data != null) {
                     String query = String.format("DELETE FROM %s_KW WHERE docid = ?", data.tableName);
@@ -621,16 +620,6 @@ public class SQLiteManager implements DataManager {
         }
     };
 
-    /**
-     * Queries full-text search table.
-     * The result is sorted according to criteria relevance
-     *
-     * @param clazz
-     * @param criteria
-     * @return ID array sorted by criteria hit weight
-     * @throws DataAccessException
-     * @throws DataIntegrityException
-     */
     public long[] queryKeywords(Class<?> clazz, String criteria) throws DataAccessException, DataIntegrityException {
         if (clazz == null) {
             throw new DataAccessException("SQLiteManager: Query Keywords: class is null");
@@ -740,8 +729,8 @@ public class SQLiteManager implements DataManager {
 					if (c.moveToNext()) {
 						entity = clazz.newInstance();
 						populateStorage(entity, builder.tableData.fields, c);
-                        if (SQLiteEvent.class.isAssignableFrom(entity.getClass())) {
-                            ((SQLiteEvent) entity).onRead();
+                        if (EntityEvent.class.isAssignableFrom(entity.getClass())) {
+                            ((EntityEvent) entity).onRead();
                         }
 
 					} 

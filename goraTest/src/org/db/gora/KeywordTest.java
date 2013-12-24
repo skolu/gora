@@ -8,7 +8,7 @@ import org.db.gora.schema.SchemaUtils;
 
 public class KeywordTest extends AndroidTestCase {
 
-    SQLiteSchema schema;
+    SQLSchema schema;
     DatabaseHelper helper;
     SQLiteDatabase db;
 

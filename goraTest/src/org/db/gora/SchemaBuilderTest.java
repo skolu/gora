@@ -13,7 +13,7 @@ import org.db.gora.schema.SchemaUtils;
 import java.util.List;
 
 public class SchemaBuilderTest extends TestCase {
-    SQLiteSchema mSchema;
+    SQLSchema mSchema;
 
     @Override
     protected void setUp() throws Exception {

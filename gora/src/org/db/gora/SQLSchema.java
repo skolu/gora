@@ -20,7 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-public abstract class SQLiteSchema {
+public abstract class SQLSchema {
 	
 	final Map<Class<?>, TableData> tableMap = new HashMap<Class<?>, TableData>();
 	public TableData getTableData(Class<?> tableClass) {
@@ -96,7 +96,7 @@ public abstract class SQLiteSchema {
 			}
 		}
 
-        table.hasKeywords = SQLiteKeywords.class.isAssignableFrom(table.tableClass);
+        table.hasKeywords = EntityKeyword.class.isAssignableFrom(table.tableClass);
 		table.tableNo = tableMap.size();
 		tableMap.put(table.tableClass, table);
 	}

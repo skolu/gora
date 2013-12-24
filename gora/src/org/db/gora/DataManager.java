@@ -15,7 +15,7 @@
 package org.db.gora;
 
 /**
- * Defines the basic dataccess methods
+ * Defines the basic data access methods
  * See {@link org.db.gora.SQLiteManager}
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
@@ -26,7 +26,7 @@ public interface DataManager {
     /**
      * Queries record IDs according to Where and OrderBy clauses.
      *
-     * @param clazz     Storage class registered with {@link org.db.gora.SQLiteSchema}
+     * @param clazz     Storage class registered with {@link SQLSchema}
      * @param where     Where clause
      * @param whereArgs Where clause arguments
      * @param orderBy   OrberBy clause
@@ -38,7 +38,7 @@ public interface DataManager {
     /**
      * Queries record IDs according to Where and OrderBy clauses.
      *
-     * @param clazz     Storage class registered with {@link org.db.gora.SQLiteSchema}
+     * @param clazz     Storage class registered with {@link SQLSchema}
      * @param where     Where clause
      * @param whereArgs Where clause arguments
      * @return          {@link org.db.gora.ClosableIterator} instance.
@@ -49,7 +49,7 @@ public interface DataManager {
     /**
      * Reads an object with children by ID
      *
-     * @param clazz     Storage class registered with {@link org.db.gora.SQLiteSchema}
+     * @param clazz     Storage class registered with {@link SQLSchema}
      * @param id        Record ID
      * @return          Instance of object or null
      * @throws          DataAccessException
@@ -60,7 +60,7 @@ public interface DataManager {
      * Stores an object with children
      *
      * @param entity    Object to store
-     * @return
+     * @return          true - success, false - skipped
      * @throws          DataAccessException
      */
     <T> boolean write(T entity) throws DataAccessException;
@@ -68,7 +68,7 @@ public interface DataManager {
     /**
      * Deletes an object with children by ID
      *
-     * @param clazz     Storage class registered with {@link org.db.gora.SQLiteSchema}
+     * @param clazz     Storage class registered with {@link SQLSchema}
      * @param id        Record ID
      * @throws          DataAccessException
      */
@@ -96,4 +96,17 @@ public interface DataManager {
         void close();
     }
     FieldCursor queryFields(Class<?> clazz, String where, String[] whereArgs, String ...fields) throws DataAccessException, DataIntegrityException;
+
+    /**
+     * Queries full-text search table.
+     * The result is sorted according to criteria relevance
+     *
+     * @param clazz         Storage class registered with {@link SQLSchema}
+     * @param criteria      Full-text search criteria
+     * @return              ID array sorted by criteria hit weight
+     * @throws              DataAccessException
+     * @throws              DataIntegrityException if clazz does not support fts
+     */
+    public long[] queryKeywords(Class<?> clazz, String criteria) throws DataAccessException, DataIntegrityException;
+
 }

@@ -43,8 +43,7 @@ public class Invoice extends Entity {
 
     @SqlTable(name="InvoiceItem")
     public static class InvoiceItem extends Row {
-        public InvoiceItem() {
-        }
+        public InvoiceItem() { }
 
         public InvoiceItem(Inventory item) {
             this();
@@ -63,22 +62,13 @@ public class Invoice extends Entity {
 
         @SqlColumn(name="item_no", getter="getItemNo", setter="setItemNo")
         int itemNo;
-        public int getItemNo() {
-            return itemNo;
-        }
-        public void setItemNo(int itemNo) {
-            this.itemNo = itemNo;
-        }
-
+        public int getItemNo() { return itemNo; }
+        public void setItemNo(int itemNo) { this.itemNo = itemNo; }
 
         @SqlColumn(name="name", getter="getName", setter="setName")
         String name;
-        public String getName() {
-            return name;
-        }
-        public void setName(String name) {
-            this.name = name;
-        }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
 
         @SqlColumn(name="desc")
         public String desc;
@@ -91,12 +81,8 @@ public class Invoice extends Entity {
 
         @SqlColumn(name="qty", getter="getQty", setter="setQty")
         float qty;
-        public float getQty() {
-            return qty;
-        }
-        public void setQty(float qty) {
-            this.qty = qty;
-        }
+        public float getQty() { return qty; }
+        public void setQty(float qty) { this.qty = qty; }
 
         @SqlColumn(name="invn_id")
         @SqlLinkedEntity(entity=Inventory.class, whenBroken=WhenLinkBroken.UNLINK)

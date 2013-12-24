@@ -27,7 +27,7 @@ import android.util.Log;
 
 /**
  * Extends {@link SQLiteOpenHelper} to support SQLite database schema modification
- * according to {@link SQLiteSchema}
+ * according to {@link SQLSchema}
  *
  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
@@ -35,23 +35,21 @@ import android.util.Log;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     /**
-     * Creates a new DatabaseHelper class instance.
+     * Creates a new {@link DatabaseHelper} class instance.
      *
-     * @param context Android context
-     * @param databaseName Database name. null if in-memory database.
+     * @param context       Android context
+     * @param databaseName  Database name. null if in-memory database.
      * @param schema
      */
-    public DatabaseHelper(Context context, String databaseName, SQLiteSchema schema) {
+    public DatabaseHelper(Context context, String databaseName, SQLSchema schema) {
         super(context, databaseName, null, schema.getDatabaseVersion());
 
         mSchema = schema;
     }
 
-    final SQLiteSchema mSchema;
+    final SQLSchema mSchema;
 
-    public SQLiteSchema getSchema() {
-        return mSchema;
-    }
+    public SQLSchema getSchema() { return mSchema; }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
@@ -209,7 +207,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return columnInfo;
     }
 
-    protected static void adjustDatabaseSchema(SQLiteDatabase db, SQLiteSchema sqlSchema) {
+    protected static void adjustDatabaseSchema(SQLiteDatabase db, SQLSchema sqlSchema) {
 
         Map<String, DbColumnType> dbColumns = new HashMap<String, DbColumnType>();
         List<DbIndexInfo> dbIndice = new ArrayList<DbIndexInfo>();

@@ -15,15 +15,21 @@
 package org.db.gora;
 
 /**
- * <p>When implemented, enables full-text search for class/table
- *
- * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
+  * When implemented, defines entity callbacks
+  *
+  * @author Sergey Kolupaev &lt;skolupaev@gmail.com&gt;
  */
 
-public interface SQLiteKeywords {
+public interface EntityEvent {
     /**
-     * Returns keywords
-     * @return
+     * Called when object is read from database
+     * */
+    void onRead();
+
+    /**
+     * Called when object is about to be saved to database.
+     *
+     * @return  true - proceed with write; false - interrupt write
      */
-    String getKeywords();
+    boolean onWrite();
 }

@@ -1,9 +1,9 @@
 package org.db.gora.schema;
 
-import org.db.gora.SQLiteKeywords;
+import org.db.gora.EntityKeyword;
 
 @SqlTable(name="Inventory")
-public class Inventory extends Entity implements SQLiteKeywords {
+public class Inventory extends Entity implements EntityKeyword {
     @SqlColumn(name="item_no")
     public int itemNo;
 

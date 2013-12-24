@@ -1,16 +1,18 @@
 package org.db.gora.schema;
 
 import org.db.gora.DataIntegrityException;
-import org.db.gora.SQLiteSchema;
+import org.db.gora.SQLSchema;
 
 public class SchemaUtils {
 
-    public static SQLiteSchema getSchema() throws DataIntegrityException {
+    public static int sDatabaseVersion = 1;
+
+    public static SQLSchema getSchema() throws DataIntegrityException {
         if (sSchema == null) {
-            sSchema = new SQLiteSchema() {
+            sSchema = new SQLSchema() {
                 @Override
                 public int getDatabaseVersion() {
-                    return 1;
+                    return sDatabaseVersion;
                 }
             };
 
@@ -21,5 +23,5 @@ public class SchemaUtils {
         return sSchema;
     }
 
-    static SQLiteSchema sSchema;
+    static SQLSchema sSchema;
 }
