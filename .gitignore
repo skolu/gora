@@ -1,9 +1,12 @@
 .settings/
+.gradle/
+.idea/
 local.properties
-bin/
+build/
 gen/
 libs/
 out/
 workspace.xml
 tasks.xml
+*.iml
 .DS_Store
