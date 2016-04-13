@@ -2,7 +2,9 @@ package org.db.gora;
 
 import android.database.sqlite.SQLiteDatabase;
 import android.test.AndroidTestCase;
+
 import junit.framework.Assert;
+
 import org.db.gora.schema.Inventory;
 import org.db.gora.schema.SchemaUtils;
 

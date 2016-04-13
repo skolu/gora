@@ -2,6 +2,7 @@ package org.db.gora;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
+
 import org.db.gora.schema.Customer;
 import org.db.gora.schema.Inventory;
 import org.db.gora.schema.Invoice;

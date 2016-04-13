@@ -1,16 +1,15 @@
 package org.db.gora;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-
-
 import junit.framework.Assert;
+import junit.framework.TestCase;
+
 import org.db.gora.accessors.IntFieldAccessor;
 import org.db.gora.accessors.ListFieldChildAccessor;
 import org.db.gora.schema.Invoice;
-
-import junit.framework.TestCase;
 import org.db.gora.schema.SchemaUtils;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 
 public class FieldValueTest extends TestCase {
 	SqlSchema schema;

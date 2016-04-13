@@ -1,7 +1,9 @@
 package org.db.gora;
 
 import android.test.AndroidTestCase;
+
 import junit.framework.Assert;
+
 import org.db.gora.schema.Customer;
 import org.db.gora.schema.SchemaUtils;
 

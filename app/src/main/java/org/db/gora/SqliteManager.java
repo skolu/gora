@@ -14,6 +14,12 @@
 
 package org.db.gora;
 
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteStatement;
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -30,12 +36,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import android.content.ContentValues;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteStatement;
-import android.util.Log;
 
 /**
  * Android SQLite implementation of {@link DataManager}
@@ -663,7 +663,7 @@ public class SqliteManager implements DataManager {
             throw new DataAccessException(String.format("SQLiteManager: Query Keywords: class %s has no keywords", clazz.getName()));
         }
 
-        List<KeywordRecord> keywordRecords = new ArrayList<KeywordRecord>();
+        List<KeywordRecord> keywordRecords = new ArrayList<>();
 
         String query = String.format(Locale.getDefault(),
                 "SELECT docid, matchinfo(%s, 'pcx') FROM %<s WHERE content MATCH :1",

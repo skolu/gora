@@ -23,7 +23,7 @@ public class Customer extends Entity {
     List<Address> addresses;
     public List<Address> getAddresses() {
         if (addresses == null) {
-            addresses = new ArrayList<Address>();
+            addresses = new ArrayList<>();
         }
         return addresses;
     }

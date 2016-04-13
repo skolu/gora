@@ -2,6 +2,8 @@ package org.db.gora.schema;
 
 import org.db.gora.EntityKeyword;
 
+import java.util.Locale;
+
 @SqlTable(name="Inventory")
 public class Inventory extends Entity implements EntityKeyword {
     @SqlColumn(name="item_no")
@@ -21,6 +23,6 @@ public class Inventory extends Entity implements EntityKeyword {
 
     @Override
     public String getKeywords() {
-        return String.format("%s %s %d", name, desc != null ? desc : "", itemNo);
+        return String.format(Locale.getDefault(), "%s %s %d", name, desc != null ? desc : "", itemNo);
     }
 }

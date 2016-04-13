@@ -299,7 +299,7 @@ public class PredicateBuilder {
 
 
         private WhereCriteria mLastCriteria;
-        private ArrayList<WhereCriteria> mOrList = new ArrayList<WhereCriteria>();
+        private ArrayList<WhereCriteria> mOrList = new ArrayList<>();
     }
 
     /**

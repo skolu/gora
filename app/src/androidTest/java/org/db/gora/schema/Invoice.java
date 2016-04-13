@@ -1,11 +1,11 @@
 package org.db.gora.schema;
 
+import org.db.gora.WhenLinkBroken;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import org.db.gora.WhenLinkBroken;
 
 @SqlTable(name="Invoice")
 public class Invoice extends Entity {
@@ -17,7 +17,7 @@ public class Invoice extends Entity {
 
     public Set<InvoicePayment> getPayments() {
         if (payments == null) {
-            payments = new HashSet<InvoicePayment>();
+            payments = new HashSet<>();
         }
         return payments;
     }

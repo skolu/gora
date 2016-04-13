@@ -2,8 +2,20 @@ package org.db.gora;
 
 import android.database.sqlite.SQLiteDatabase;
 import android.test.AndroidTestCase;
+
 import junit.framework.Assert;
-import org.db.gora.schema.*;
+
+import org.db.gora.schema.Address;
+import org.db.gora.schema.Customer;
+import org.db.gora.schema.EntityType;
+import org.db.gora.schema.Inventory;
+import org.db.gora.schema.Invoice;
+import org.db.gora.schema.InvoiceCashPayment;
+import org.db.gora.schema.InvoiceCreditPayment;
+import org.db.gora.schema.InvoiceCustomer;
+import org.db.gora.schema.InvoicePayment;
+import org.db.gora.schema.PaymentType;
+import org.db.gora.schema.SchemaUtils;
 
 import java.io.File;
 import java.util.ArrayList;

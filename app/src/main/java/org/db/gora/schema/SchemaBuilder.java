@@ -14,17 +14,43 @@
 
 package org.db.gora.schema;
 
+import org.db.gora.ChildDataType;
+import org.db.gora.ChildTableData;
+import org.db.gora.DataIntegrityException;
+import org.db.gora.FieldData;
+import org.db.gora.FieldDataType;
+import org.db.gora.IndexData;
+import org.db.gora.SqlSchema;
+import org.db.gora.TableData;
+import org.db.gora.TableLinkData;
+import org.db.gora.accessors.DoubleFieldAccessor;
+import org.db.gora.accessors.DoublePropertyAccessor;
+import org.db.gora.accessors.GenericFieldAccessor;
+import org.db.gora.accessors.GenericPropertyAccessor;
+import org.db.gora.accessors.IntFieldAccessor;
+import org.db.gora.accessors.IntPropertyAccessor;
+import org.db.gora.accessors.ListFieldChildAccessor;
+import org.db.gora.accessors.ListMethodChildAccessor;
+import org.db.gora.accessors.SetFieldChildAccessor;
+import org.db.gora.accessors.SetMethodChildAccessor;
+import org.db.gora.accessors.SimpleFieldChildAccessor;
+import org.db.gora.accessors.SimpleMethodChildAccessor;
+import org.db.gora.accessors.StringFieldAccessor;
+import org.db.gora.accessors.StringPropertyAccessor;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
-import java.util.*;
-
-import org.db.gora.*;
-import org.db.gora.SqlSchema;
-import org.db.gora.accessors.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Extracts database information from the class annotations and
